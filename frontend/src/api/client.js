@@ -108,7 +108,7 @@ function buildUrl(path, query) {
   return url.toString();
 }
 
-async function rawRequest(path, { method = "GET", body, query, token, signal } = {}) {
+async function rawRequest(path, { method = "GET", body, query, token, signal, responseType = "json" } = {}) {
   const headers = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -143,6 +143,7 @@ async function rawRequest(path, { method = "GET", body, query, token, signal } =
   }
 
   if (response.status === 204) return null;
+  if (response.ok && responseType === "blob") return response.blob();
 
   let data = null;
   try {
@@ -197,8 +198,9 @@ const SESSION_EXPIRED = () =>
 /**
  * Make an API request.
  * @param {string} path e.g. "/notes"
- * @param {{method?: string, body?: any, query?: object, signal?: AbortSignal, auth?: boolean}} options
+ * @param {{method?: string, body?: any, query?: object, signal?: AbortSignal, auth?: boolean, responseType?: "json"|"blob"}} options
  *   `auth: false` sends no token and skips session handling (login/register).
+ *   `responseType: "blob"` returns the body as a Blob (file downloads).
  */
 export async function request(path, { auth = true, ...options } = {}) {
   if (!auth) return rawRequest(path, options);

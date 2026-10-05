@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import useAutosave from "../hooks/useAutosave";
+import useAutosave, { drafts } from "../hooks/useAutosave";
 
 describe("useAutosave", () => {
   beforeEach(() => vi.useFakeTimers());
@@ -77,5 +77,52 @@ describe("useAutosave", () => {
     second.unmount();
     await act(() => vi.runAllTimersAsync());
     expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe("useAutosave drafts and retries", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("keeps unsaved edits in localStorage until the server confirms them", async () => {
+    let resolveSave;
+    const save = vi.fn(() => new Promise((r) => (resolveSave = r)));
+    const { result } = renderHook(() => useAutosave(save, { delay: 100, draftId: "n1" }));
+
+    act(() => result.current.queue({ content: "draft text" }));
+    expect(drafts.read("n1").patch).toEqual({ content: "draft text" });
+
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    // Still in flight: the draft must survive a crash right now.
+    expect(drafts.read("n1").patch).toEqual({ content: "draft text" });
+
+    await act(async () => resolveSave({}));
+    expect(drafts.read("n1")).toBeNull();
+  });
+
+  it("keeps the draft and retries automatically after a network error", async () => {
+    const offline = Object.assign(new Error("offline"), { code: "network_error" });
+    const save = vi.fn().mockRejectedValueOnce(offline).mockResolvedValue({});
+    const { result } = renderHook(() => useAutosave(save, { delay: 100, draftId: "n2" }));
+
+    act(() => result.current.queue({ title: "x" }));
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    expect(result.current.status).toBe("offline");
+    expect(drafts.read("n2").patch).toEqual({ title: "x" });
+
+    await act(() => vi.advanceTimersByTimeAsync(3_000)); // first retry delay
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe("saved");
+    expect(drafts.read("n2")).toBeNull();
+  });
+
+  it("does not retry errors that retrying can't fix", async () => {
+    const invalid = Object.assign(new Error("bad"), { status: 422 });
+    const save = vi.fn().mockRejectedValue(invalid);
+    const { result } = renderHook(() => useAutosave(save, { delay: 100 }));
+    act(() => result.current.queue({ title: "x" }));
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe("error");
   });
 });

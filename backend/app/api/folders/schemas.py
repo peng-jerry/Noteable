@@ -15,3 +15,4 @@ class FolderUpdateSchema(Schema):
     name = TrimmedString(validate=name_rules)
     # Set to null to move the folder to the top level.
     parent_id = fields.String(allow_none=True)
+    is_starred = fields.Boolean()

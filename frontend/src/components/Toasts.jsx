@@ -14,10 +14,11 @@ export function ToastProvider({ children }) {
   }, []);
 
   const push = useCallback(
-    (type, message) => {
+    (type, message, action) => {
       const id = nextId.current++;
-      setToasts((list) => [...list.slice(-3), { id, type, message }]);
-      setTimeout(() => dismiss(id), type === "error" ? DURATION_MS * 1.6 : DURATION_MS);
+      setToasts((list) => [...list.slice(-3), { id, type, message, action }]);
+      const duration = action ? DURATION_MS * 2 : type === "error" ? DURATION_MS * 1.6 : DURATION_MS;
+      setTimeout(() => dismiss(id), duration);
       return id;
     },
     [dismiss],
@@ -25,8 +26,9 @@ export function ToastProvider({ children }) {
 
   const toast = useMemo(
     () => ({
-      success: (message) => push("success", message),
-      info: (message) => push("info", message),
+      /** `action` is an optional { label, onClick } button, e.g. Undo. */
+      success: (message, action) => push("success", message, action),
+      info: (message, action) => push("info", message, action),
       error: (errOrMessage) =>
         push(
           "error",
@@ -46,6 +48,18 @@ export function ToastProvider({ children }) {
           <div key={t.id} className={`toast toast-${t.type}`}>
             <Icon name={t.type === "error" ? "alert" : t.type === "success" ? "check" : "info"} />
             <span>{t.message}</span>
+            {t.action && (
+              <button
+                type="button"
+                className="toast-action"
+                onClick={() => {
+                  dismiss(t.id);
+                  t.action.onClick();
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
             <button
               type="button"
               className="toast-close"

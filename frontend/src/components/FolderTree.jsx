@@ -1,9 +1,13 @@
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Link } from "react-router";
 import { buildTree } from "../utils/folders";
 import Icon from "./Icon";
 import Menu from "./Menu";
 
-/** Collapsible nested folder list (nested lists of links). */
+/**
+ * Collapsible nested folder list. Each row can be dragged (to move the
+ * folder) and accepts drops of notes (move into it) and folders (nest it).
+ */
 export default function FolderTree({ folders, selectedId, expanded, onToggle, onAction }) {
   const tree = buildTree(folders);
   return (
@@ -28,9 +32,22 @@ function FolderNode({ node, depth, selectedId, expanded, onToggle, onAction }) {
   const isOpen = expanded.has(node.id);
   const isSelected = node.id === selectedId;
 
+  const drag = useDraggable({ id: `folder:${node.id}`, data: { type: "folder", folder: node } });
+  const drop = useDroppable({
+    id: `drop:${node.id}`,
+    data: { type: "folder-target", folderId: node.id, accepts: ["note", "folder"] },
+  });
+  const draggingType = drop.active?.data.current?.type;
+  const canDrop = drop.isOver && draggingType && drop.active.id !== `folder:${node.id}`;
+  const { onKeyDown: _keyboard, ...pointerListeners } = drag.listeners ?? {};
+
   return (
     <li>
-      <div className={`folder-row ${isSelected ? "active" : ""}`} style={{ "--depth": depth }}>
+      <div
+        ref={drop.setNodeRef}
+        className={`folder-row ${isSelected ? "active" : ""} ${canDrop ? "drop-over" : ""} ${drag.isDragging ? "is-dragging" : ""}`}
+        style={{ "--depth": depth }}
+      >
         {hasChildren ? (
           <button
             type="button"
@@ -45,24 +62,28 @@ function FolderNode({ node, depth, selectedId, expanded, onToggle, onAction }) {
           <span className="folder-toggle-spacer" />
         )}
         <Link
+          ref={drag.setNodeRef}
           to={`/notes?folder=${node.id}`}
           className="folder-link"
           aria-current={isSelected ? "page" : undefined}
           title={node.name}
+          {...pointerListeners}
         >
-          <Icon name="folder" />
+          <Icon name={node.is_starred ? "star" : "folder"} className={node.is_starred ? "star-icon" : ""} />
           <span className="folder-name">{node.name}</span>
           {node.note_count > 0 && <span className="count">{node.note_count}</span>}
         </Link>
         <Menu
-          className="folder-menu"
+          className="row-menu"
           label={`Actions for folder ${node.name}`}
           trigger={<Icon name="more" />}
           items={[
             { label: "New subfolder", icon: <Icon name="folder-plus" />, onSelect: () => onAction("subfolder", node) },
+            { label: node.is_starred ? "Unstar" : "Star", icon: <Icon name="star" />, onSelect: () => onAction("star", node) },
             { label: "Rename", icon: <Icon name="pen" />, onSelect: () => onAction("rename", node) },
             { label: "Move", icon: <Icon name="move" />, onSelect: () => onAction("move", node) },
-            { label: "Delete", icon: <Icon name="trash" />, danger: true, onSelect: () => onAction("delete", node) },
+            { label: "Export as .zip", icon: <Icon name="download" />, onSelect: () => onAction("export", node) },
+            { label: "Move to trash", icon: <Icon name="trash" />, danger: true, onSelect: () => onAction("delete", node) },
           ]}
         />
       </div>

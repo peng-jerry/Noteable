@@ -23,6 +23,7 @@ from ...errors import ConflictError, UnauthorizedError, ValidationError
 from ...extensions import db, limiter
 from ...models import TokenBlocklist, User
 from ...models.base import utcnow
+from ..trash.service import purge_expired
 from .schemas import (
     ChangePasswordSchema,
     DeleteAccountSchema,
@@ -92,6 +93,7 @@ def login():
 
     user.last_login_at = utcnow()
     db.session.commit()
+    purge_expired(user.id)  # empty out trash older than 30 days
     return jsonify({"user": user.to_dict(), **issue_tokens(user)})
 
 

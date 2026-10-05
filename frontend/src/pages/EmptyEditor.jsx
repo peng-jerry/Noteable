@@ -11,7 +11,7 @@ export default function EmptyEditor() {
       </p>
       <p className="muted small">
         Tip: <kbd>Ctrl</kbd>+<kbd>B</kbd> bold · <kbd>Ctrl</kbd>+<kbd>I</kbd> italic ·{" "}
-        <kbd>Ctrl</kbd>+<kbd>K</kbd> link · <kbd>Ctrl</kbd>+<kbd>S</kbd> save now
+        <kbd>Ctrl</kbd>+<kbd>K</kbd> link · <kbd>Ctrl</kbd>+<kbd>S</kbd> save now · type <kbd>[[</kbd> to link a note
       </p>
     </div>
   );

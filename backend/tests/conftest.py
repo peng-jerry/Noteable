@@ -39,3 +39,16 @@ def register(client):
 def auth(register):
     headers, _ = register()
     return headers
+
+
+@pytest.fixture
+def api(client, auth):
+    """Shorthand for authenticated JSON calls: api("post", "/notes", {...})."""
+
+    def _call(method, path, body=None, expect=None, headers=None):
+        res = getattr(client, method)(f"/api/v1{path}", headers=headers or auth, json=body)
+        if expect is not None:
+            assert res.status_code == expect, (res.status_code, res.get_json())
+        return res
+
+    return _call

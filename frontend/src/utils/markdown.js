@@ -114,6 +114,7 @@ export function plainText(markdown = "") {
   return markdown
     .replace(/```[^\n]*/g, " ") // code fences
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1") // images → alt text
+    .replace(/\[\[([^[\]\n]+)\]\]/g, "$1") // [[wiki links]] → title
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // links → link text
     .replace(/^\s*\*\s(?=\S)/, "") // a leading "* " bullet
     .replace(/(^|\s)(#{1,6}|>|[-+](?: \[[ xX]\])?|\* \[[ xX]\]|\d+\.)(?=\s)/g, "$1") // block markers

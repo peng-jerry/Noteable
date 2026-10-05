@@ -9,11 +9,15 @@ Noteable is designed as **the first part of a larger website**. The backend is
 a general-purpose API with shared user accounts, and new features plug into it
 as separate modules (see [Extending the backend](#extending-the-backend)).
 
+**Live:** app at <https://peng-jerry.github.io/projects/noteable/> · write-up at
+<https://peng-jerry.github.io/projects/project12/> · API health at
+<https://noteable-e5ba.onrender.com/api/v1/health>
+
 | Part | Tech | Hosted on | Status |
 |---|---|---|---|
-| [`backend/`](backend/) | Flask REST API, SQLAlchemy, JWT auth | Render (web service) | ✅ Built |
-| Database | PostgreSQL | Neon or Supabase (free tier) | ✅ Schema + migrations |
-| [`frontend/`](frontend/) | React 19 + Vite SPA, Markdown editor | GitHub Pages (`/noteable`) | ✅ Built (not yet copied into the portfolio) |
+| [`backend/`](backend/) | Flask REST API, SQLAlchemy, JWT auth | Render (`noteable-e5ba.onrender.com`) | ✅ Deployed |
+| Database | PostgreSQL | Neon (free tier) | ✅ Deployed |
+| [`frontend/`](frontend/) | React 19 + Vite SPA, Markdown editor | GitHub Pages (`/projects/noteable/`) | ✅ Built into the portfolio's `projects/noteable/` folder |
 
 ## Features
 
@@ -24,8 +28,20 @@ as separate modules (see [Extending the backend](#extending-the-backend)).
 | User-specific document storage | ✅ | — |
 | Create / edit / delete notes, with autosave | ✅ | ✅ |
 | Markdown editor with toolbar + live preview | ✅ stores Markdown | ✅ |
-| Nested folders (create, rename, move, delete) | ✅ | ✅ |
-| Search, pinning, sorting, pagination | ✅ | ✅ |
+| Nested folders (create, rename, move, star, delete) | ✅ | ✅ |
+| Coloured, managed tags with multi-tag (AND) filtering | ✅ | ✅ |
+| Search: ranked full-text (Postgres), partial words, `tag:` filters, highlighted matches | ✅ | ✅ |
+| Sorting: 8 orders, remembered per view, manual drag order in folders | ✅ | ✅ |
+| Templates: 5 built-in + your own, with `{{date}}`-style placeholders | ✅ | ✅ |
+| Import `.md` / `.txt` / `.zip` (keeps folders); export `.md`, `.txt`, PDF, `.zip` | ✅ | ✅ |
+| Trash with restore; items deleted for good after 30 days | ✅ | ✅ |
+| Offline-safe autosave: drafts kept in the browser, auto-retry, recovery | — | ✅ |
+| Version history: auto + named snapshots, diff, restore | ✅ | ✅ |
+| `[[Note links]]` with autocomplete, backlinks, rename-safe | ✅ | ✅ |
+| Drag & drop: notes onto folders, folders into folders | ✅ | ✅ |
+| Duplicate notes; starred folders | ✅ | ✅ |
+| Outline, stats and backlinks panel | ✅ backlinks | ✅ |
+| Resizable / collapsible panes (remembered per browser) | — | ✅ |
 | Responsive UI (desktop / tablet / phone) + light/dark theme | — | ✅ |
 
 ---
@@ -49,16 +65,20 @@ Noteable/
 │       ├── extensions.py   ← db, migrate, jwt, cors, limiter
 │       ├── errors.py       ← error classes + JSON error handlers
 │       ├── common/         ← shared helpers: auth, request parsing, validation, pagination
-│       ├── models/         ← User, Folder, Note, TokenBlocklist
+│       ├── models/         ← User, Folder, Note, Tag, Template, NoteVersion, NoteLink, TokenBlocklist
 │       └── api/            ← one package per feature, all under /api/v1
 │           ├── __init__.py ← registers feature blueprints
 │           ├── health.py
 │           ├── auth/       ← routes.py + schemas.py
 │           ├── folders/    ← routes.py + schemas.py + service.py
-│           └── notes/      ← routes.py + schemas.py
+│           ├── notes/      ← routes.py + schemas.py + service.py (tags, links, versions, search)
+│           ├── tags/       ← tag management
+│           ├── templates/  ← routes.py + builtins.py (the 5 starter templates)
+│           ├── trash/      ← routes.py + service.py (30-day retention, purge)
+│           └── transfer/   ← import / export
 └── frontend/
     ├── index.html          ← page shell, fonts, theme set before first paint
-    ├── vite.config.js      ← build base /noteable/, test config
+    ├── vite.config.js      ← build base /projects/noteable/, test config
     ├── .env.development    ← VITE_API_URL for local dev
     ├── .env.production     ← VITE_API_URL for the Render backend
     └── src/
@@ -66,10 +86,12 @@ Noteable/
         ├── App.jsx         ← route table: public / public-only / private
         ├── api/            ← fetch client (tokens, refresh, errors) + endpoint wrappers
         ├── auth/           ← AuthContext + RequireAuth / RedirectIfAuthed guards
-        ├── pages/          ← Landing, Login/Register, Workspace, Note editor, Settings, errors
-        ├── components/     ← Sidebar, FolderTree, NoteList, MarkdownEditor, Dialog, Menu, Toasts…
-        ├── hooks/          ← useAutosave, useNoteList, useTheme, useMediaQuery…
-        ├── utils/          ← folder tree, Markdown edits, dates, validation (pure, unit-tested)
+        ├── pages/          ← Landing, Login/Register, Workspace, Note editor, Trash, Templates, Settings…
+        ├── workspace/      ← WorkspaceContext: folders, tags, titles, trash count, templates
+        ├── components/     ← Sidebar, FolderTree, NoteList, MarkdownEditor, Tags, VersionHistory,
+        │                     ImportDialog, InfoPanel, Resizer, Dialog, Menu, Toasts…
+        ├── hooks/          ← useAutosave (drafts + retry), useNoteList, useLayoutPrefs, useTheme…
+        ├── utils/          ← folder tree, Markdown edits, [[links]], templates, import, sorting (unit-tested)
         ├── styles/         ← plain CSS using the portfolio's design tokens
         └── test/           ← Vitest + Testing Library tests
 ```
@@ -144,27 +166,31 @@ npm run dev                      # http://localhost:5173 (expects the backend on
 |---|---|
 | `npm run dev` | Dev server with hot reload |
 | `npm test` | Run the Vitest suite once (`npm run test:watch` to keep watching) |
-| `npm run build` | Production build into `frontend/dist/`, with asset paths under `/noteable/` |
-| `npm run preview` | Serve that build at <http://localhost:5173/noteable/> to check it |
+| `npm run build` | Production build into `frontend/dist/`, with asset paths under `/projects/noteable/` |
+| `npm run preview` | Serve that build at <http://localhost:5173/projects/noteable/> to check it |
 
 `VITE_API_URL` sets which backend the app talks to. `.env.development` points
 at `http://localhost:5000/api/v1` and `.env.production` at
-`https://noteable-api.onrender.com/api/v1`. Change the second one if Render
+`https://noteable-e5ba.onrender.com/api/v1`. Change the second one if Render
 gives your service a different URL. To override either one locally, put the
 value in `frontend/.env.local`, which git ignores. `VITE_BASE` changes the
-`/noteable/` path prefix if you host the app somewhere else.
+`/projects/noteable/` path prefix if you host the app somewhere else.
 
 ### How the frontend works
 
-- **Routing.** It uses hash URLs (`/noteable/#/notes/<id>`). GitHub Pages only
+- **Routing.** It uses hash URLs (`/projects/noteable/#/notes/<id>`). GitHub Pages only
   serves the portfolio's own `404.html`, so ordinary paths like
-  `/noteable/notes/<id>` would break when the page is reloaded.
+  `/projects/noteable/notes/<id>` would break when the page is reloaded.
 
   | Route | Access |
   |---|---|
   | `/` | Public landing page |
   | `/login`, `/register` | Public only. Logged-in users are sent to `/notes` |
-  | `/notes`, `/notes/:id`, `/settings` | Private. Logged-out users are sent to `/login`, then back to the page they asked for |
+  | `/notes`, `/notes/:id`, `/trash[/:id]`, `/templates[/:id]`, `/new?title=…`, `/settings` | Private. Logged-out users are sent to `/login`, then back to the page they asked for |
+
+  The signed-in part of the app is a separate code bundle, so the public pages
+  load quickly. Version history and import are split out further and only
+  load when opened.
 
 - **Sessions.** Tokens are kept in `localStorage`. The API client attaches the
   access token to each request. When it gets `token_expired`, it refreshes the
@@ -172,17 +198,47 @@ value in `frontend/.env.local`, which git ignores. `VITE_BASE` changes the
   session can't be recovered, it shows the login page with a "session expired"
   message. Logging out in one tab logs out the others too.
 - **Autosave.** Edits are saved about 0.9 s after you stop typing. Only the
-  changed fields are sent. Saves happen one at a time and in order, failed
-  saves are kept for a retry, and anything unsaved is saved when you switch
-  notes. The browser warns before you close a tab with unsaved work, and
-  `Ctrl/⌘+S` saves straight away.
+  changed fields are sent. Saves happen one at a time and in order, and
+  anything unsaved is saved when you switch notes. Until the server confirms a
+  save, the unsent changes are also kept in `localStorage`. Failed saves retry
+  with back-off (3 s → 60 s), and again as soon as the browser is back online;
+  the status shows "Offline — saved on this device". If the tab closed first,
+  reopening the note shows a banner offering to restore the draft. The browser
+  warns before you close a tab with unsaved work, and `Ctrl/⌘+S` saves
+  straight away.
+- **Links between notes.** Type `[[` to get title suggestions. In the preview,
+  `[[Title]]` becomes a link, and a link to a note that doesn't exist yet
+  creates it when clicked. The details panel (⧉ button) shows the outline,
+  stats and the notes that link here. Renaming a note updates the link text
+  everywhere.
+- **Organising.** Tags are added from the note header and filtered from the
+  sidebar; several tags together means notes with all of them. Search accepts
+  `tag:name`, `tag:"two words"` and `"exact phrases"`. The sort choice is
+  remembered for each folder or view, and "Manual" (folders only) lets you
+  drag notes into order; the grip handle also works with the keyboard. Notes
+  can be dragged onto sidebar folders or Unfiled, and folders onto folders or
+  the Folders heading (top level). On touch screens, long-press to drag.
+- **Note menu (⋯).** Version history, duplicate, save as template, export as
+  `.md` / `.txt`, print or save as PDF, and move to trash (with Undo).
+- **Templates.** Templates (in the sidebar) lists the built-in ones (read-only,
+  but they can be duplicated) and yours (editable, autosaved). Placeholders
+  `{{date}}`, `{{time}}`, `{{datetime}}`, `{{weekday}}`, `{{title}}` and
+  `{{folder}}` are filled in from your own clock and locale when used. Pick a
+  template from the ▾ next to "New note".
+- **Import / export.** List ⋯ menu → Import (or drop files onto the note list).
+  `.zip` files are unpacked in the browser and sent in batches. Folder menu →
+  Export as .zip; list menu → Export all notes. Exports include a small
+  front-matter header (title, tags, pinned), so they re-import losslessly.
 - **Editor.** Markdown with a toolbar (bold, italic, heading, bulleted,
   numbered and check lists, quote, code, link) and the shortcuts `Ctrl/⌘+B`,
   `I`, `E` and `K`. Pressing Enter continues a list. The preview supports
   GitHub-flavoured Markdown (tables, task lists). Raw HTML in a note is never
   rendered, so a note can't inject scripts.
-- **Layout.** Three panes at 1100 px and wider. On tablets the folders move
-  into a slide-out drawer. On phones you see either the list or the open note,
+- **Layout.** Three panes at 1100 px and wider. Drag the dividers to resize
+  the sidebar, the note list, and the editor/preview split; double-click a
+  divider (or press Enter on it) to reset it. The header's panel button hides
+  the sidebar, and the editor's list button hides the note list. Sizes are
+  remembered per browser. On tablets the folders move into a slide-out drawer. On phones you see either the list or the open note,
   with a back button. The look reuses the portfolio's design: the same colour
   tokens, IBM Plex fonts and grid background. The light/dark choice is stored
   under the same key as the portfolio's, so it carries over between them.
@@ -192,12 +248,24 @@ value in `frontend/.env.local`, which git ignores. `VITE_BASE` changes the
   crash screen if a page throws. Friendly pages for a missing note, a missing
   folder, and 404s.
 
-### Deploying the frontend (later step)
+### Deploying the frontend
 
-1. Make sure `VITE_API_URL` in `frontend/.env.production` matches the Render URL.
-2. Run `npm run build`.
-3. Copy everything in `frontend/dist/` into `peng-jerry.github.io/noteable/` and push the portfolio repo.
-4. If the frontend is hosted anywhere other than `https://peng-jerry.github.io`,
+The live copy is in the portfolio repo's `projects/noteable/` folder. After changing the
+frontend, rebuild straight into that folder, then commit and push the portfolio:
+
+```bash
+cd frontend
+npm run build -- --outDir ../../peng-jerry.github.io/projects/noteable --emptyOutDir
+```
+
+**Order matters when the API changes:** push this repo first and wait until
+Render shows the deploy as live (it runs the database migration on start).
+Only then push the portfolio. Otherwise the new frontend calls endpoints the
+old backend doesn't have yet.
+
+1. `VITE_API_URL` in `frontend/.env.production` must match the Render URL
+   (currently `https://noteable-e5ba.onrender.com/api/v1`).
+2. If the frontend is hosted anywhere other than `https://peng-jerry.github.io`,
    add that origin to `CORS_ORIGINS` on Render.
 
 ---
@@ -236,8 +304,8 @@ number. Emails are case-insensitive.
 | GET | `/folders` | — | `{folders: [...], unfiled_note_count}`: a flat list. Build the tree from `parent_id` |
 | POST | `/folders` | `name`, `parent_id?` | `201` `{folder}` |
 | GET | `/folders/:id` | — | `{folder, path: [{id,name}...], children: [...]}` (`path` is the breadcrumb trail) |
-| PATCH | `/folders/:id` | `name?`, `parent_id?` (`null` = move to top level) | `{folder}` |
-| DELETE | `/folders/:id` | — | `{deleted: {folders, notes}}`. **Also deletes all subfolders and notes inside** |
+| PATCH | `/folders/:id` | `name?`, `parent_id?` (`null` = move to top level), `is_starred?` | `{folder}` |
+| DELETE | `/folders/:id` | — | `{trashed: {folders, notes}}`. Moves it **and everything inside** to the trash |
 
 Every folder includes a `note_count`. Folder rules:
 
@@ -250,10 +318,24 @@ Every folder includes a `note_count`. Folder rules:
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | GET | `/notes` | see query parameters below | `{notes: [summary...], pagination}` |
-| POST | `/notes` | `title?`, `content?`, `folder_id?`, `is_pinned?` | `201` `{note}` |
+| POST | `/notes` | `title?`, `content?`, `folder_id?`, `is_pinned?`, `tags?` (names) | `201` `{note}` |
+| GET | `/notes/titles` | — | `{notes: [{id, title, folder_id}]}` for link autocomplete |
+| POST | `/notes/reorder` | `folder_id` (`null` = unfiled), `note_ids` | Saves a manual order |
 | GET | `/notes/:id` | — | `{note}` with the full `content` |
-| PATCH | `/notes/:id` | any of `title`, `content`, `folder_id` (`null` = unfiled), `is_pinned` | `{note}` |
-| DELETE | `/notes/:id` | — | `204` |
+| PATCH | `/notes/:id` | any of `title`, `content`, `folder_id`, `is_pinned`, `tags` (replaces them; new names are created) | `{note, links_updated}` |
+| DELETE | `/notes/:id` | — | `204`. Moves the note to the trash |
+| POST | `/notes/:id/duplicate` | — | `201` `{note}` titled "… (copy)" |
+| GET | `/notes/:id/backlinks` | — | `{backlinks: [{id, title, excerpt}]}` |
+| GET | `/notes/:id/versions` | — | `{versions}` (newest first, no content) |
+| POST | `/notes/:id/versions` | `label?` | `201` `{version}`, a named snapshot |
+| GET | `/notes/:id/versions/:vid` | — | `{version}` with content |
+| POST | `/notes/:id/versions/:vid/restore` | — | `{note}`. The current text is saved as a version first |
+
+Notes include `tags: [{id, name, color}]` and `position` (manual order).
+While you edit, a snapshot of the previous text is kept at most every 10
+minutes, up to 50 versions per note. `[[Links]]` are recorded on save. When a
+note is renamed, `[[Old title]]` is rewritten in every note that links to it,
+and `links_updated` says how many notes changed.
 
 `content` is Markdown, up to 200,000 characters. A blank title becomes
 `"Untitled"`. List results are **summaries**: they have an `excerpt` instead of
@@ -264,13 +346,69 @@ the full `content`.
 | Param | Values | Default |
 |---|---|---|
 | `folder_id` | a folder ID, or `unfiled` | all notes |
-| `q` | text to search for in the title or content (case-insensitive) | — |
+| `q` | search text: every word must appear in the title or content (partial words match). Also `tag:name`, `tag:"two words"`, `"exact phrase"` | — |
+| `tags` | comma-separated tag IDs; a note must have **all** of them | — |
 | `pinned` | `true` / `false` | — |
-| `sort` | `updated_at`, `created_at`, `title` | `updated_at` |
+| `sort` | `updated_at`, `created_at`, `title`, `relevance` (with `q`), `position` (manual) | `updated_at` |
 | `order` | `asc`, `desc` | `desc` |
 | `page`, `per_page` | integers (`per_page` ≤ 100) | `1`, `50` |
 
-Pinned notes always come first.
+Pinned notes always come first, except in manual (`position`) order. With `q`,
+each result's `excerpt` is a snippet around the first match, and the response
+includes `search: {terms, tags}` for highlighting. On Postgres, `relevance`
+combines title/content matches with full-text ranking (`ts_rank_cd`), so
+stemmed forms like "running" and "run" count too.
+
+### Tags: `/tags` (all protected)
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/tags` | — | `{tags: [{id, name, color, note_count}], colors}` |
+| POST | `/tags` | `name`, `color?` | `201` `{tag}` (`409 tag_name_taken` if it exists) |
+| PATCH | `/tags/:id` | `name?`, `color?` | `{tag}` |
+| DELETE | `/tags/:id` | — | `204`. The tag is removed from notes; the notes stay |
+
+Tag names are 1–40 characters, without commas, unique per user ignoring case,
+with at most 20 per note. Colours are names (`sky`, `indigo`, `violet`, `rose`,
+`orange`, `amber`, `emerald`, `teal`, `slate`) that the frontend maps to theme-safe shades.
+
+### Templates: `/templates` (all protected)
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/templates` | — | `{templates}`: built-ins (`builtin: true`, id `builtin-…`) then yours |
+| POST | `/templates` | `name`, `description?`, `title?`, `content?` | `201` `{template}` |
+| PATCH | `/templates/:id` | any of the above | `{template}` (`403` for built-ins) |
+| DELETE | `/templates/:id` | — | `204` |
+
+### Trash: `/trash` (all protected)
+
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/trash` | `{items: [{type: "note"\|"folder", …, deleted_at, expires_at, location}], retention_days}`. Purges expired items first |
+| GET | `/trash/count` | `{count}` (sidebar badge) |
+| GET | `/trash/notes/:id` | `{note}`, read-only preview |
+| POST | `/trash/notes/:id/restore` | `{note}`. Goes to Unfiled if its folder is gone |
+| POST | `/trash/folders/:id/restore` | `{folder}`. Brings back everything trashed with it; top level if the parent is gone; renamed "… (restored)" on a name clash |
+| DELETE | `/trash/notes/:id`, `/trash/folders/:id` | `204`. Permanent |
+| DELETE | `/trash` | `{deleted}`. Empties the trash |
+
+Items are permanently deleted 30 days after being trashed. This happens the
+next time the trash is opened, on login, or via `flask --app wsgi purge-trash`
+(Render's free tier has no cron).
+
+### Import / export (protected)
+
+| Method | Path | Body / query | Returns |
+|---|---|---|---|
+| POST | `/import` | `folder_id?`, `files: [{path, content}]` (≤ 100 per request) | `{created: {notes, folders}, notes, skipped}` |
+| GET | `/export` | `?folder_id=` (omit for everything) | A `.zip` of `.md` files that keeps the folder structure |
+
+Import creates folders from paths (`School/15-113/week1.md`), reusing ones with
+the same name. Titles come from front matter `title:`, else the first
+`# heading`, else the file name. Front matter `tags:` and `pinned:` are applied
+and the header is removed. Export writes that same header, so exports
+round-trip.
 
 ### Other
 
@@ -309,9 +447,14 @@ Every error has the same shape, whatever caused it:
 ## Database
 
 ```
-users ─┬─< folders (parent_id → folders, nested)
+users ─┬─< folders (parent_id → folders, nested; deleted_at/trashed_with = trash)
        │      └─< notes
-       ├─< notes (folder_id NULL = unfiled)
+       ├─< notes (folder_id NULL = unfiled; position = manual order; deleted_at = trash)
+       │      ├─< note_versions (snapshots)
+       │      ├─< note_links (source → target, target_key = lower-cased title)
+       │      └─>< tags (via note_tags)
+       ├─< tags
+       ├─< templates
        └─< token_blocklist (revoked JWTs)
 ```
 
@@ -339,6 +482,15 @@ users ─┬─< folders (parent_id → folders, nested)
    and checks `/api/v1/health`.
 5. If the frontend is served from somewhere other than
    `https://peng-jerry.github.io`, update `CORS_ORIGINS` in Render.
+
+**Troubleshooting:** if the deploy log ends with `Failed to find attribute
+'app' in 'app'` after `Running 'gunicorn app:app'`, Render is using its default
+start command. This happens when the service is created with **New → Web
+Service** instead of the Blueprint. In **Settings → Build & Deploy**, set Root
+Directory to `backend` and Start Command to
+`flask --app wsgi db upgrade && gunicorn wsgi:app --workers 2 --timeout 60`.
+Then add the environment variables from the table above (`APP_ENV=production`,
+`SECRET_KEY`, `JWT_SECRET_KEY`, `DATABASE_URL`, `CORS_ORIGINS`).
 
 > Render's free web services go to sleep after ~15 minutes without traffic, so
 > the first request after that can take ~30–60 seconds while the service wakes up.
@@ -378,12 +530,19 @@ without changing existing ones:
 - Rate-limit counters are kept in memory for each gunicorn worker, so the real
   limit is roughly ×2 and resets when the service restarts. For stricter limits,
   point `RATELIMIT_STORAGE_URI` at Redis.
-- Search uses a simple `LIKE` match, which is fine at this scale. Postgres
-  full-text search would be the upgrade path.
+- Search filters with `LIKE` (so partial words match) and uses Postgres
+  full-text search only for ranking, without a dedicated index. That's fine
+  for one person's notes; a much larger dataset would want a `pg_trgm` or
+  GIN index.
 - Tokens are stored in `localStorage`, which is the usual trade-off for a
   frontend on github.io talking to an API on onrender.com (cookies would be
   third-party and get blocked). The main risk is script injection (XSS), which
   is limited by never rendering raw HTML from notes.
-- Notes aren't available offline. If a save fails, the editor keeps the
-  changes and offers Retry, but they aren't kept once the tab is closed.
-- Editing the same note in two tabs at once is last-write-wins.
+- Offline support covers saving edits to notes that are already open. Notes
+  can't be opened or created without a connection.
+- Editing the same note in two tabs at once is last-write-wins. Version
+  history makes this recoverable, but there's no live merge.
+- Drag & drop needs a mouse or touch screen (manual order also works from the
+  keyboard). Everything it does is also available from menus and the folder
+  picker.
+- Layout sizes are stored per browser, not per account (as chosen).

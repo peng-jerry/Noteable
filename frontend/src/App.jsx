@@ -1,24 +1,52 @@
+import { Suspense, lazy } from "react";
 import { Navigate, createHashRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { RedirectIfAuthed, RequireAuth } from "./auth/RouteGuards";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
-import EmptyEditor from "./pages/EmptyEditor";
 import { NotFoundPage, RouteErrorPage } from "./pages/ErrorPages";
 import LandingPage from "./pages/LandingPage";
-import NotePage from "./pages/NotePage";
-import SettingsPage from "./pages/SettingsPage";
-import WorkspaceLayout from "./pages/WorkspaceLayout";
+import FullPageStatus from "./components/FullPageStatus";
+import Spinner from "./components/Spinner";
+
+// The signed-in app is split from the public pages, so the landing page and
+// login load quickly; its code downloads once you're signed in.
+const WorkspaceLayout = lazy(() => import("./pages/WorkspaceLayout"));
+const EmptyEditor = lazy(() => import("./pages/EmptyEditor"));
+const NotePage = lazy(() => import("./pages/NotePage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const pick = (load, name) => lazy(() => load().then((m) => ({ default: m[name] })));
+const templatePages = () => import("./pages/TemplatePages");
+const trashPages = () => import("./pages/TrashPages");
+const TemplatePage = pick(templatePages, "TemplatePage");
+const TemplateEmptyPane = pick(templatePages, "TemplateEmptyPane");
+const NewFromLinkPage = pick(templatePages, "NewFromLinkPage");
+const TrashNotePage = pick(trashPages, "TrashNotePage");
+const TrashEmptyPane = pick(trashPages, "TrashEmptyPane");
+
+const page = (element) => <Suspense fallback={<FullPageStatus loading />}>{element}</Suspense>;
+const pane = (element) => (
+  <Suspense
+    fallback={
+      <div className="editor-message">
+        <Spinner size={24} />
+      </div>
+    }
+  >
+    {element}
+  </Suspense>
+);
 
 /*
- * Hash routing (/noteable/#/notes/123) because the app is served from a
+ * Hash routing (/projects/noteable/#/notes/123) because the app is served from a
  * subfolder of a GitHub Pages site: Pages only knows the portfolio's own
- * 404.html, so real paths like /noteable/notes/123 would 404 on reload.
+ * 404.html, so real paths like /projects/noteable/notes/123 would 404 on reload.
  *
- *  Public:        /            landing page
- *  Public-only:   /login       (logged-in users are redirected to /notes)
- *                 /register
- *  Private:       /notes       workspace (folders, list, editor)
- *                 /notes/:id
+ *  Public:        /                  landing page
+ *  Public-only:   /login, /register  (logged-in users are redirected to /notes)
+ *  Private:       /notes[/:id]       workspace (sidebar, note list, editor)
+ *                 /trash[/:id]       trash (list + read-only preview)
+ *                 /templates[/:id]   template manager
+ *                 /new?title=…       create a note from a [[link]]
  *                 /settings
  */
 export const routes = [
@@ -37,14 +65,18 @@ export const routes = [
         element: <RequireAuth />,
         children: [
           {
-            path: "/notes",
-            element: <WorkspaceLayout />,
+            element: page(<WorkspaceLayout />),
             children: [
-              { index: true, element: <EmptyEditor /> },
-              { path: ":noteId", element: <NotePage /> },
+              { path: "/notes", element: pane(<EmptyEditor />) },
+              { path: "/notes/:noteId", element: pane(<NotePage />) },
+              { path: "/trash", element: pane(<TrashEmptyPane />) },
+              { path: "/trash/:noteId", element: pane(<TrashNotePage />) },
+              { path: "/templates", element: pane(<TemplateEmptyPane />) },
+              { path: "/templates/:templateId", element: pane(<TemplatePage />) },
             ],
           },
-          { path: "/settings", element: <SettingsPage /> },
+          { path: "/new", element: page(<NewFromLinkPage />) },
+          { path: "/settings", element: page(<SettingsPage />) },
           { path: "/app", element: <Navigate to="/notes" replace /> },
         ],
       },

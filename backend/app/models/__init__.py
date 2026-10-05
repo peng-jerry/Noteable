@@ -4,8 +4,23 @@ When you add a feature with its own tables, import its models here too.
 """
 
 from .folder import Folder
-from .note import Note
+from .link import NoteLink
+from .note import Note, note_tags
+from .tag import TAG_COLORS, Tag
+from .template import Template
 from .token_blocklist import TokenBlocklist
 from .user import User
+from .version import NoteVersion
 
-__all__ = ["User", "Folder", "Note", "TokenBlocklist"]
+__all__ = [
+    "User",
+    "Folder",
+    "Note",
+    "note_tags",
+    "NoteLink",
+    "NoteVersion",
+    "Tag",
+    "TAG_COLORS",
+    "Template",
+    "TokenBlocklist",
+]

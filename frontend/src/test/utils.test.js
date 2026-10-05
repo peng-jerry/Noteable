@@ -87,6 +87,7 @@ describe("plainText", () => {
     expect(plainText("- [ ] milk - [x] eggs")).toBe("milk eggs");
     expect(plainText("> see [the docs](https://x.y) and `code`")).toBe("see the docs and code");
     expect(plainText("2 * 3 = 6, snake_case_name")).toBe("2 * 3 = 6, snake_case_name");
+    expect(plainText("See [[Flask Basics]] now")).toBe("See Flask Basics now");
   });
 });
 

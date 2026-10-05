@@ -4,7 +4,8 @@ GET    /             every folder the user owns (flat list; build the tree from 
 POST   /             create a folder
 GET    /<id>         one folder, with its breadcrumb path and direct children
 PATCH  /<id>         rename and/or move a folder
-DELETE /<id>         delete a folder with all of its subfolders and notes
+PATCH  /<id>         also takes is_starred (starred folders are shown first in the sidebar)
+DELETE /<id>         move a folder, its subfolders and their notes to the trash
 """
 
 from flask import Blueprint, jsonify
@@ -14,7 +15,7 @@ from sqlalchemy import func
 from ...common.auth import current_user
 from ...common.request import load_body
 from ...extensions import db
-from ...models import Folder, Note
+from ...models import Folder
 from . import service
 from .schemas import FolderCreateSchema, FolderUpdateSchema
 
@@ -29,7 +30,7 @@ def _with_count(folder: Folder, counts: dict) -> dict:
 @jwt_required()
 def list_folders():
     user = current_user()
-    folders = Folder.query.filter_by(user_id=user.id).order_by(func.lower(Folder.name)).all()
+    folders = service.active_folders(user.id).order_by(func.lower(Folder.name)).all()
     counts = service.note_counts(user.id)
     return jsonify(
         {
@@ -91,6 +92,8 @@ def update_folder(folder_id):
 
     folder.name = new_name
     folder.parent_id = new_parent_id
+    if "is_starred" in data:
+        folder.is_starred = data["is_starred"]
     db.session.commit()
     return jsonify({"folder": _with_count(folder, service.note_counts(user.id))})
 
@@ -100,10 +103,6 @@ def update_folder(folder_id):
 def delete_folder(folder_id):
     user = current_user()
     folder = service.get_owned_folder(user.id, folder_id)
-    folder_ids = {folder.id} | service.descendant_ids(folder.id, service.folder_map(user.id))
-    note_total = Note.query.filter(Note.user_id == user.id, Note.folder_id.in_(folder_ids)).count()
-
-    # Subfolders and notes are removed by ON DELETE CASCADE in the database.
-    db.session.delete(folder)
+    counts = service.trash_folder(user.id, folder)
     db.session.commit()
-    return jsonify({"deleted": {"folders": len(folder_ids), "notes": note_total}})
+    return jsonify({"trashed": counts})

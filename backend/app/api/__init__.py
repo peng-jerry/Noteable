@@ -19,8 +19,21 @@ from . import health
 from .auth.routes import bp as auth_bp
 from .folders.routes import bp as folders_bp
 from .notes.routes import bp as notes_bp
+from .tags.routes import bp as tags_bp
+from .templates.routes import bp as templates_bp
+from .transfer.routes import bp as transfer_bp
+from .trash.routes import bp as trash_bp
 
-FEATURE_BLUEPRINTS = [health.bp, auth_bp, folders_bp, notes_bp]
+FEATURE_BLUEPRINTS = [
+    health.bp,
+    auth_bp,
+    folders_bp,
+    notes_bp,
+    tags_bp,
+    templates_bp,
+    trash_bp,
+    transfer_bp,
+]
 
 
 def register_api(app: Flask) -> None:

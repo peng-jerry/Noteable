@@ -73,7 +73,7 @@ def test_max_depth(client, auth):
     assert res.get_json()["error"]["code"] == "max_depth_exceeded"
 
 
-def test_delete_cascades_to_subfolders_and_notes(client, auth):
+def test_delete_moves_folder_subfolders_and_notes_to_trash(client, auth):
     a = make_folder(client, auth, "A")
     b = make_folder(client, auth, "B", a["id"])
     client.post("/api/v1/notes", headers=auth, json={"folder_id": a["id"]})
@@ -81,7 +81,7 @@ def test_delete_cascades_to_subfolders_and_notes(client, auth):
     client.post("/api/v1/notes", headers=auth, json={"title": "keep me"})
 
     res = client.delete(f"/api/v1/folders/{a['id']}", headers=auth)
-    assert res.get_json()["deleted"] == {"folders": 2, "notes": 2}
+    assert res.get_json()["trashed"] == {"folders": 2, "notes": 2}
     assert client.get("/api/v1/folders", headers=auth).get_json()["folders"] == []
     notes = client.get("/api/v1/notes", headers=auth).get_json()["notes"]
     assert [n["title"] for n in notes] == ["keep me"]

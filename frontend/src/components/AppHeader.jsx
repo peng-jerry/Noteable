@@ -22,7 +22,7 @@ export function ThemeToggle() {
 }
 
 /** Top bar shared by every page. `onMenuClick` shows the sidebar toggle. */
-export default function AppHeader({ onMenuClick, menuOpen = false }) {
+export default function AppHeader({ onMenuClick, menuOpen = false, menuLabel }) {
   const { user, status, logout } = useAuth();
   const navigate = useNavigate();
   const authed = status === "authenticated";
@@ -35,11 +35,12 @@ export default function AppHeader({ onMenuClick, menuOpen = false }) {
             type="button"
             className="icon-btn sidebar-toggle"
             onClick={onMenuClick}
-            aria-label={menuOpen ? "Close folders" : "Open folders"}
+            aria-label={menuLabel ?? (menuOpen ? "Close folders" : "Open folders")}
+            title={menuLabel}
             aria-expanded={menuOpen}
             aria-controls="sidebar"
           >
-            <Icon name={menuOpen ? "x" : "menu"} />
+            <Icon name="panel-left" />
           </button>
         )}
         <Link to={authed ? "/notes" : "/"} className="brand">

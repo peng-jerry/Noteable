@@ -9,6 +9,7 @@ from sqlalchemy import func
 from ...errors import ConflictError, NotFoundError, ValidationError
 from ...extensions import db
 from ...models import Folder, Note
+from ...models.base import utcnow
 
 MAX_DEPTH = 10  # a top-level folder is depth 1
 
@@ -19,7 +20,7 @@ def get_owned_folder(user_id: str, folder_id: str) -> Folder:
     Other users' folders get the same 404 as missing ones, so IDs can't be
     probed to find out what exists.
     """
-    folder = Folder.query.filter_by(id=folder_id, user_id=user_id).first()
+    folder = active_folders(user_id).filter_by(id=folder_id).first()
     if folder is None:
         raise NotFoundError("Folder not found.", code="folder_not_found")
     return folder
@@ -29,7 +30,7 @@ def resolve_parent(user_id: str, parent_id: str | None, field: str = "parent_id"
     """Look up a folder referenced from a request body (422 if it isn't usable)."""
     if parent_id is None:
         return None
-    folder = Folder.query.filter_by(id=parent_id, user_id=user_id).first()
+    folder = active_folders(user_id).filter_by(id=parent_id).first()
     if folder is None:
         raise ValidationError(
             "Folder not found.", details={field: ["Folder not found."]}
@@ -37,8 +38,13 @@ def resolve_parent(user_id: str, parent_id: str | None, field: str = "parent_id"
     return folder
 
 
+def active_folders(user_id: str):
+    """Query for the user's folders that are not in the trash."""
+    return Folder.query.filter(Folder.user_id == user_id, Folder.deleted_at.is_(None))
+
+
 def folder_map(user_id: str) -> dict[str, Folder]:
-    return {f.id: f for f in Folder.query.filter_by(user_id=user_id).all()}
+    return {f.id: f for f in active_folders(user_id).all()}
 
 
 def ancestors(folder: Folder, folders: dict[str, Folder]) -> list[Folder]:
@@ -79,8 +85,7 @@ def _subtree_height(folder_id: str, folders: dict[str, Folder]) -> int:
 
 def ensure_unique_name(user_id: str, name: str, parent_id: str | None, exclude_id: str | None = None) -> None:
     """Sibling folders can't share a name (case-insensitive)."""
-    query = Folder.query.filter(
-        Folder.user_id == user_id,
+    query = active_folders(user_id).filter(
         Folder.parent_id.is_(None) if parent_id is None else Folder.parent_id == parent_id,
         func.lower(Folder.name) == name.lower(),
     )
@@ -124,8 +129,29 @@ def ensure_valid_placement(folder: Folder | None, new_parent: Folder | None, fol
 def note_counts(user_id: str) -> dict[str | None, int]:
     rows = (
         db.session.query(Note.folder_id, func.count(Note.id))
-        .filter(Note.user_id == user_id)
+        .filter(Note.user_id == user_id, Note.deleted_at.is_(None))
         .group_by(Note.folder_id)
         .all()
     )
     return {folder_id: count for folder_id, count in rows}
+
+
+def trash_folder(user_id: str, folder: Folder) -> dict:
+    """Move a folder, its subfolders and their notes to the trash.
+
+    Everything inside is tagged with the folder's id (`trashed_with`) so a
+    restore brings back exactly what was trashed together. Returns counts.
+    """
+    now = utcnow()
+    inside = descendant_ids(folder.id, folder_map(user_id))
+    folder.deleted_at, folder.trashed_with = now, None
+    if inside:
+        Folder.query.filter(Folder.id.in_(inside)).update(
+            {Folder.deleted_at: now, Folder.trashed_with: folder.id}, synchronize_session=False
+        )
+    notes = Note.query.filter(
+        Note.user_id == user_id,
+        Note.deleted_at.is_(None),
+        Note.folder_id.in_(inside | {folder.id}),
+    ).update({Note.deleted_at: now, Note.trashed_with: folder.id}, synchronize_session=False)
+    return {"folders": len(inside) + 1, "notes": notes}

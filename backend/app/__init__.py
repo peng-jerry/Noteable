@@ -55,6 +55,13 @@ def create_app(config_name: str | None = None) -> Flask:
 
         print(f"Purged {TokenBlocklist.purge_expired()} expired token record(s).")
 
+    @app.cli.command("purge-trash")
+    def purge_trash():
+        """Permanently delete trash items older than the retention period."""
+        from .api.trash.service import purge_expired
+
+        print(f"Purged {purge_expired()} expired trash item(s).")
+
     @app.get("/")
     def index():
         return jsonify(
