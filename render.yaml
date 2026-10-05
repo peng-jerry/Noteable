@@ -1,0 +1,25 @@
+# Render Blueprint: in Render, New → Blueprint → pick this repo.
+# You'll be prompted for DATABASE_URL (from Neon/Supabase); secrets are generated.
+services:
+  - type: web
+    name: noteable-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Apply any pending migrations, then serve.
+    startCommand: flask --app wsgi db upgrade && gunicorn wsgi:app --workers 2 --timeout 60
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.13
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://peng-jerry.github.io,http://localhost:5173
