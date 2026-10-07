@@ -65,7 +65,6 @@ BUILTIN_TEMPLATES = [
             "## Night\n- Ate dinner\n- Worked on Noteable\n- Hung out with friends\n- Went to sleep\n"
         ),
     },
-
 ]
 
 BUILTIN_IDS = {t["id"] for t in BUILTIN_TEMPLATES}

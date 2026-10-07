@@ -88,6 +88,9 @@ describe("plainText", () => {
     expect(plainText("> see [the docs](https://x.y) and `code`")).toBe("see the docs and code");
     expect(plainText("2 * 3 = 6, snake_case_name")).toBe("2 * 3 = 6, snake_case_name");
     expect(plainText("See [[Flask Basics]] now")).toBe("See Flask Basics now");
+    // Excerpts are cut at 160 characters, sometimes mid-link, and may contain tables.
+    expect(plainText("deploy ![Doodle](attachment:1234) ![Photo](attachment:5678-9a")).toBe("deploy Doodle Photo");
+    expect(plainText("| A | B | | --- | :---: | | 1 | 2 |")).toBe("A B 1 2");
   });
 });
 

@@ -1,18 +1,14 @@
 # Prompt log: Noteable
 
-> **✏️ Jerry: three sections near the top are marked "To write".** They're
-> reflections the course wants from you. Each box lists facts from the project
-> to draw on. Delete the boxes (and this note) once you've written them. The
-> prompts further down are your messages **verbatim**, including typos.
-> "Selected:" lines are your answers to Claude's multiple-choice questions.
-> "Result:" notes summarise what came back.
-
 ## Tools used
 
 - **Claude Code** (Anthropic), model **Claude Opus 5.5**, running in the VS Code
   extension. Used for all of it: clarifying questions and feature
   brainstorming, writing the backend, frontend, tests and docs, running and
   debugging them, and the portfolio integration.
+- **Claude on the web** (claude.ai): used to check requirements, come up with
+  names and explain the database and backend setup (see "Which tool for
+  which job" below).
 - **Development and testing tools Claude ran:** pytest (backend tests, on
   SQLite and a throwaway PostgreSQL server), Vitest + Testing Library
   (frontend tests), Playwright (scripted runs in a real Chromium browser,
@@ -22,12 +18,7 @@
 
 ### Which tool for which job
 
-> **To write (a sentence or two):** which tool you used for which part, and
-> *why*. Facts: everything ran through Claude Code. Its clarifying questions
-> served as the brainstorming and design step (you picked from options), it
-> wrote and tested the code, and debugging happened in the same session (e.g.
-> you pasted the Render error log). If you used anything else (ChatGPT, docs,
-> Render's dashboard logs, your browser's dev tools), mention it and why.
+Everything was run with Claude Code. Both the IDE & the web version were used. The web version was used to verify requirements, generate idea names and explain database & backend setup. The IDE was used to create the backend & frontend, and debug code. 
 
 ## Development process
 
@@ -61,58 +52,26 @@ All work happened between **4 and 7 October 2026**, in this order:
    fake camera.
 9. **Requirements check** (Prompt 13): reviewed the README, prompt log,
    repos and live site against the course requirements.
+10. **Portfolio update** (Prompt 14): I pushed the pictures/doodles round and
+    Render deployed it. Then the portfolio copy was rebuilt and the write-up
+    updated.
+11. **Writing my sections** (Prompts 15–17): I wrote the README and prompt-log
+    sections myself; a recheck caught that saving from an older editor copy
+    had overwritten later AI-written additions, which were restored around my
+    text.
 
 ### Parts I wrote or substantially changed myself
 
-> **To write:** be specific and honest. As far as this session shows, Claude
-> made the code changes, and your work was the requirements, every design
-> decision (≈37 multiple-choice answers plus the Render URL), creating the
-> GitHub repo and the commits, setting up Neon and Render, catching and
-> reporting the Render deploy failure, and reviewing the results. **You also
-> wrote the `builtin-jerry` template in `backend/app/api/templates/builtins.py`
-> yourself** (Prompts 10–11): describe what you added, what Claude flagged
-> (bullets missing the space after `-`, `# ## Morning`, and the id naming), and
-> how you fixed it. If you edited any other files yourself, list them here.
+I went through the codebase and added an additional built-in template directly through the codebase titled "Day in the life of Jerry" which every account created will have. It has a built-in tag to show that it was originally created as a part of the codebase. I learned a lot through creating this template as I got to explore the file structure. I found the Project Structure Diagram that Claude made very useful for this part. 
 
 ## One place AI got it wrong
 
-> **To write (one short paragraph):** pick one and say what happened and what
-> you did about it. Real examples from this project:
-> - **Confidently wrong URL.** Claude assumed the backend would live at
->   `noteable-api.onrender.com` (from the service name in `render.yaml`) and put
->   that address in the frontend config and docs. Render had given that name to
->   someone else's service, so the build would have sent your users' logins to
->   a stranger's API. It was caught only when the health check returned a
->   response in the wrong format, and fixed with the real URL you supplied
->   (`noteable-e5ba.onrender.com`).
-> - **Assumed one deploy path.** The setup steps assumed Render's Blueprint
->   flow. You created a plain Web Service instead, so Render ran its default
->   `gunicorn app:app` and crashed. You pasted the log, and the fix was the
->   Start Command and environment variables.
-> - **A migration that would have broken production.** In the feature round,
->   the auto-generated database migration wrote a boolean default in a form
->   SQLite accepts but PostgreSQL rejects. All 67 tests still passed, because
->   they run on SQLite by default. It was only caught by testing the migration
->   on Postgres with existing data.
-> - **Bugs it introduced and only browser runs caught:**
->   - Deleting the folder you were viewing left the app on a dead page.
->   - A dialog wiped text typed the instant it opened.
->   - Every tag showed as grey because of a CSS ordering mistake.
->   - Drag & drop read internal IDs to screen readers instead of names.
-> - **Tool misuse.** Three times it ran a "kill the server" command whose
->   pattern matched its own command line, so it killed its own shell
->   (`exit code 144`) before changing approach.
-> - **A bug it couldn't explain (Prompt 12).** The doodle dialog was meant to
->   ask before discarding a drawing, but Escape closed it immediately. Debug
->   logging showed the drawing pad *was* reporting "unsaved strokes" to its
->   parent, yet the parent never updated. Claude couldn't find out why. It
->   restructured the code to avoid that hand-off instead (the pad answers close
->   requests itself), and the browser test confirmed the fix.
-> - **Didn't account for Markdown's own rules.** Its first versions put
->   inserted pictures directly after a table (Markdown then treats the picture
->   as another table row), and ended quotes or lists without a blank line (so
->   the next paragraph was pulled into them). Both were only noticed in
->   screenshots from the browser test, then fixed.
+ **Confidently wrong URL.** Claude assumed the backend would live at
+   `noteable-api.onrender.com` (from the service name in `render.yaml`) and put
+   that address in the frontend config and docs. Render had given that name to
+   someone else's service, so the build would have sent the users' logins to
+   a stranger's API. It was caught only when the health check returned a
+   response in the wrong format, and fixed with the real URL (`noteable-e5ba.onrender.com`). I had to do some debugging and corrected it to the actual URL that render had assigned. 
 
 ---
 
@@ -518,4 +477,46 @@ prompt-log requirements:
 - **Fixed:** two stale date ranges ("4–5 October").
 - **Checked:** no secrets are tracked in git, both files are in the right
   place, and the AI-generated documentation is labelled at the bottom.
+
+### Prompt 14: Update the portfolio
+
+```
+Update portfolio with updated project
+```
+
+**Result:**
+- **Checked first:** that my pushed commit was live on Render. A real
+  upload/download against production (throwaway account, deleted afterwards)
+  confirmed the new pictures table and the header the app needs.
+- **Portfolio:** rebuilt `projects/noteable/`. The write-up page gained a
+  "Doodles, Photos and Tables" section, updated skills, and the current test
+  counts (75 backend, 73 frontend).
+- **Verified** the rebuilt copy end to end against the live backend: projects
+  card shows "Project 2", then the write-up, then the app; a note with a
+  ticked checklist, a table, a doodle and a camera photo, which persisted
+  after a reload; then the account was deleted.
+- **Fixed:** list previews showed raw table pipes and half a picture link
+  when the server's 160-character excerpt cut through a link.
+- Nothing committed or pushed.
+
+### Prompts 15–17: Finding and checking my sections
+
+```
+Where are the to write sections I still need to do?
+```
+
+```
+They look deleted? Do you still see them?
+```
+
+```
+recheck
+```
+
+**Result:** After I wrote my README and prompt-log sections, the recheck found
+that my editor had been showing an older copy of both files. Saving it had
+overwritten later AI-written additions: Prompts 10–14 here, the README's
+documentation for doodles, pictures, tables and checklists, and two date fixes.
+Those were restored from the last commit around my own text, which was kept
+unchanged.
 

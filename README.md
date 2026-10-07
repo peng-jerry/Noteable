@@ -1,85 +1,83 @@
 # Noteable
 
-> **✏️ Jerry — sections marked "To write" are for you.** The course requires the
-> README to be written in your own words, with any AI-generated documentation
-> kept at the bottom under a clearly labelled heading. Everything Claude wrote
-> is now in [AI-generated documentation](#ai-generated-documentation) below.
-> Each "To write" box lists what the course asks for and facts you can check
-> against. Delete each box (and this note) once you've written that section.
-
 **Live app:** <https://peng-jerry.github.io/projects/noteable/> ·
 **Write-up:** <https://peng-jerry.github.io/projects/project12/> ·
 **Prompt log:** [prompt_log.md](prompt_log.md)
 
 ## What it does
 
-> **To write:** what Noteable is and who it's for, in a few sentences.
-> Facts: a Markdown note-taking web app with accounts, nested folders,
-> coloured tags, templates, `[[links]]` between notes, version history, a
-> 30-day trash, and import/export. React frontend on GitHub Pages, Flask API
-> on Render, PostgreSQL on Neon. It's built as the first part of a larger site.
+Noteable is a note-taking web app designed as an alternative to Notion & the Notes App. It has many features such as nested folders, coloured tags, templates, links between notes, version history, a 30-day trash, and import/export. It was built using Render & PostgreSQL on Neon. 
 
 ## How to use it
 
-> **To write:** a short walkthrough for someone opening it for the first time:
-> sign up, create a folder, write a note (Markdown, `[[` to link a note), tag
-> it, search with `tag:name`, start a note from a template (▾ next to New
-> note), drag notes onto folders, find things in Trash, and use the ⋯ menu
-> for version history and export. Newer toolbar items: table, doodle, take a
-> picture, indent/outdent, and ticking checklist boxes in the preview.
-> Mention the first visit can take up to a minute while the free Render
-> server wakes up.
+To use Noteable create an account, create your first note and folder and just start typing! There are many features to explore to allow for a variety of uses!
+
+The first visit can take up to a minute while the free Render server wakes up.
 
 ## Features I'm most proud of
 
-> **To write:** pick two to four and say *why*, in your own words.
-> Possible candidates: offline-safe autosave with draft recovery; `[[links]]`
-> that survive renames, plus backlinks; version history with a diff; trash that
-> restores whole folders; import/export that round-trips through a `.zip`; drag
-> & drop that also works with touch and the keyboard; the API designed to grow
-> into a larger site; editable doodles; the in-app camera; tables you Tab
-> through.
+- Version History: Version Control and reversion to be able to see edit history. Very useful especially if it's a living document that keeps changing 
+- Import/Export: I've always wanted to have a place to consolidate all my notes and having an import/export function makes it very easy to use and integrate with other note-taking platforms. 
+- Tags: I also really like the tag system, which allows you to tag each post and search based on those tags, allowing you to easily find what you're looking for. 
+- Overall I'm very happy with all the features and how they turned out. 
 
 ## Running it locally
 
-> **To write:** the steps in your own words. Facts to check against:
-> - Backend (Python 3.12+): `cd backend`, `python3 -m venv .venv`,
->   `source .venv/bin/activate`, `pip install -r requirements-dev.txt`,
->   `cp .env.example .env`, `flask --app wsgi db upgrade`,
->   `flask --app wsgi run --debug` → <http://127.0.0.1:5000>. Uses SQLite
->   locally, so no database setup is needed.
-> - Frontend (Node 22.22+; on this machine `conda activate noteable`):
->   `cd frontend`, `npm install`, `npm run dev` → <http://localhost:5173>.
-> - Tests: `pytest` in `backend/`, `npm test` in `frontend/`.
+You'll need two terminals open, one for the backend and one for the frontend.
+ 
+### Backend
+ 
+You need Python 3.12 or newer. The backend uses a local SQLite file when it runs on your machine, so you don't have to set up a database.
+ 
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env
+flask --app wsgi db upgrade
+flask --app wsgi run --debug
+```
+
+The API runs at <http://127.0.0.1:5000>. To check it's working, open <http://127.0.0.1:5000/api/v1/health>.
+
+### Frontend
+ 
+You need Node.js 22.22 or newer. On my own computer, I run `conda activate noteable` first because that's where my Node install is. You can skip that if you already have Node installed.
+ 
+```bash
+cd frontend
+npm install
+npm run dev
+```
+ 
+Open <http://localhost:5173>. The frontend expects the backend to be running on port 5000, so start the backend first.
+ 
+### Tests
+ 
+- Backend: run `pytest` inside `backend/`.
+- Frontend: run `npm test` inside `frontend/`.
 
 ## How secrets are handled
 
-> **To write:** facts to check against:
-> - The backend needs `SECRET_KEY`, `JWT_SECRET_KEY` and `DATABASE_URL`. Locally
->   they go in `backend/.env`, which `.gitignore` excludes. `.env.example` is
->   only a template with placeholder values.
-> - In production they're set in Render's dashboard: Render generated the two
->   keys, and the Neon connection string was pasted in by hand. None are in
->   git. The app refuses to start in production if any are missing, so it can
->   never run with the development defaults.
-> - The frontend has no secrets. `VITE_API_URL` is a public address, which is
->   why `frontend/.env.production` is committed.
-> - User passwords are stored only as scrypt hashes. Login tokens are JWTs kept
->   in the browser's `localStorage`. Logging out or changing your password
->   revokes them on the server.
+ The backend needs `SECRET_KEY`, `JWT_SECRET_KEY` and `DATABASE_URL`. Locally
+ they go in `backend/.env`, which `.gitignore` excludes. 
+ In production they're set in Render's dashboard: Render generated the two
+ keys, and the Neon connection string was pasted in by hand. None are in
+ git. The app refuses to start in production if any are missing, so it can
+ never run with the development defaults.
+ The frontend has no secrets. `VITE_API_URL` is a public address, which is
+ why `frontend/.env.production` is committed.
+ User passwords are stored only as scrypt hashes. Login tokens are JWTs kept
+ in the browser's `localStorage`. Logging out or changing your password revokes them on the server.
 
 ## How I used AI
 
-> **To write:** a brief summary of how you used AI and how you directed it.
-> For example: you set the requirements and made the design choices through
-> Claude's clarifying questions, it wrote the code and docs and tested them,
-> and you handled the accounts and deployment (GitHub, Render, Neon), debugged
-> the Render deploy error, and reviewed the results. Point to
-> [prompt_log.md](prompt_log.md) for the full record.
+I created an overall vision of what I wanted, features, and how I wanted the site to feel, which I verified with the web version of Claude to ensure I had everything I wanted. I then fed it to IDE Claude in two separate steps, first the backend, then the frontend, filling in details and ensuring I hit all project metrics along the way. 
+
+See the full prompt_log.md for the full prompt log of creating this site
 
 ### Citations
-
-> **To check / edit:** a draft list of sources. Keep what applies.
 
 - **Claude Code** (Anthropic), model **Claude Opus 5.5**, used in VS Code.
   It generated essentially all of the code, tests and the AI-generated
