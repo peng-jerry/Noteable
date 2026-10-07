@@ -2,7 +2,7 @@ import { zipSync, strToU8 } from "fflate";
 import { describe, expect, it } from "vitest";
 import { findLinkQuery } from "../components/MarkdownEditor";
 import { matches, sortNotes } from "../hooks/useNoteList";
-import { batchFiles, filesFromZip } from "../utils/importFiles";
+import { batchFiles, filesFromZip, referencedImages, relinkImages, resolvePath, uploadImages } from "../utils/importFiles";
 import {
   extractHeadings,
   fillTemplate,
@@ -97,10 +97,39 @@ describe("import", () => {
       "__MACOSX/School/._week1.md": strToU8("junk"),
       ".DS_Store": strToU8("junk"),
     });
-    const { files, skipped } = filesFromZip(zip);
+    const { files, images, skipped } = filesFromZip(zip);
     expect(files.map((f) => f.path).sort()).toEqual(["School/notes.txt", "School/week1.md"]);
     expect(files.find((f) => f.path === "School/week1.md").content).toBe("# Week 1");
-    expect(skipped.map((s) => s.path)).toEqual(["School/photo.png"]);
+    expect([...images.keys()]).toEqual(["School/photo.png"]);
+    expect(skipped).toEqual([]);
+  });
+
+  it("finds the pictures notes link to and points the links at uploads", async () => {
+    expect(resolvePath("School/15-113/a.md", "../../_images/x.png")).toBe("_images/x.png");
+    expect(resolvePath("a.md", "my%20pic.png")).toBe("my pic.png");
+    const files = [
+      { path: "School/a.md", content: '![Doodle](../_images/d.png) ![web](https://x.y/p.png) ![gone](missing.png)' },
+      { path: "b.md", content: '![Photo](_images/p.jpg "caption")' },
+    ];
+    const images = new Map([
+      ["_images/d.png", { bytes: new Uint8Array([1]), type: "image/png" }],
+      ["_images/p.jpg", { bytes: new Uint8Array([2]), type: "image/jpeg" }],
+      ["_images/unused.png", { bytes: new Uint8Array([3]), type: "image/png" }],
+    ]);
+    const doodles = new Map([["_images/d.doodle.json", '{"strokes":[]}']]);
+    const wanted = referencedImages(files, images);
+    expect(wanted.sort()).toEqual(["_images/d.png", "_images/p.jpg"]);
+
+    const calls = [];
+    const upload = async (f) => {
+      calls.push(f.kind);
+      return { id: f.kind === "doodle" ? "11111111-1111-1111-1111-111111111111" : "22222222-2222-2222-2222-222222222222" };
+    };
+    const { idByPath } = await uploadImages(wanted.sort(), images, doodles, upload);
+    expect(calls).toEqual(["doodle", "image"]);
+    const [a, b] = relinkImages(files, idByPath);
+    expect(a.content).toBe('![Doodle](attachment:11111111-1111-1111-1111-111111111111) ![web](https://x.y/p.png) ![gone](missing.png)');
+    expect(b.content).toBe('![Photo](attachment:22222222-2222-2222-2222-222222222222 "caption")');
   });
 
   it("reports unreadable zips", () => {

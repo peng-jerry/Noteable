@@ -6,6 +6,9 @@
  * value[start:end] with text, then select selStart..selEnd" (positions are
  * in the new value). Keeping these pure makes them easy to test.
  */
+import { continueList, parseItem } from "./lists";
+
+export { continueList };
 
 /** Wrap the selection in a marker, e.g. ** for bold. Toggles it off if already wrapped. */
 export function wrap(value, selStart, selEnd, before, after = before, placeholder = "text") {
@@ -45,25 +48,44 @@ function lineRange(value, selStart, selEnd) {
   return { start, end };
 }
 
-const LIST_PREFIX = /^(\s*)([-*+] \[[ xX]\] |[-*+] |\d+\. |> |#{1,6} )/;
+const LIST_PREFIX = /^(\s*)([-*+] \[[ xX]\] |[-*+] |\d+[.)] |> |#{1,6} )/;
 
 /**
  * Toggle a line prefix ("- ", "1. ", "> ", "## ", "- [ ] ") on every selected line.
- * `numbered` makes the prefix count up (1. 2. 3.).
+ * Works on an empty line too: the marker appears and the caret goes after it.
+ * `numbered` counts up (1. 2. 3.), continuing from a numbered item just above.
  */
 export function prefixLines(value, selStart, selEnd, prefix, { numbered = false } = {}) {
   const { start, end } = lineRange(value, selStart, selEnd);
   const lines = value.slice(start, end).split("\n");
-  const pattern = numbered ? /^\d+\. / : new RegExp(`^${escapeRegExp(prefix)}`);
-  const allHave = lines.every((line) => !line.trim() || pattern.test(line));
+  const pattern = numbered ? /^(\s*)\d+[.)] / : new RegExp(`^(\\s*)${escapeRegExp(prefix)}`);
+  const filled = lines.filter((line) => line.trim());
+  const allHave = filled.length > 0 && filled.every((line) => pattern.test(line));
 
-  const updated = lines.map((line, i) => {
-    if (allHave) return line.replace(pattern, "");
+  // Continue the numbering of a list directly above, e.g. after "2. foo" → "3. ".
+  let next = 1;
+  if (numbered && start > 0) {
+    const above = value.slice(value.lastIndexOf("\n", start - 2) + 1, start - 1);
+    const item = parseItem(above);
+    if (item?.number !== null && item?.number !== undefined) next = item.number + 1;
+  }
+
+  const updated = lines.map((line) => {
+    if (allHave) return line.replace(pattern, "$1");
     if (!line.trim() && lines.length > 1) return line;
-    const stripped = line.replace(LIST_PREFIX, "$1"); // swap any other list/heading prefix
-    return (numbered ? `${i + 1}. ` : prefix) + stripped;
+    const [, indent, rest] = line.replace(LIST_PREFIX, "$1").match(/^(\s*)(.*)$/);
+    const marker = numbered ? `${next++}. ` : prefix;
+    return indent + marker + rest;
   });
   const text = updated.join("\n");
+
+  // One line with a plain caret: keep the caret where it was in the text
+  // (or after the new marker on an empty line). Several lines: select them.
+  if (selStart === selEnd && lines.length === 1) {
+    const delta = text.length - lines[0].length;
+    const caret = Math.max(start, Math.min(start + text.length, selStart + delta));
+    return { start, end, text, selStart: caret, selEnd: caret };
+  }
   return { start, end, text, selStart: start, selEnd: start + text.length };
 }
 
@@ -82,30 +104,6 @@ export function code(value, selStart, selEnd) {
   if (!selected.includes("\n")) return wrap(value, selStart, selEnd, "`", "`", "code");
   const atLineStart = selStart === 0 || value[selStart - 1] === "\n";
   const text = `${atLineStart ? "" : "\n"}\`\`\`\n${selected.replace(/\n$/, "")}\n\`\`\`\n`;
-  return { start: selStart, end: selEnd, text, selStart: selStart + text.length, selEnd: selStart + text.length };
-}
-
-/**
- * Enter inside a list continues it ("- " → next "- ", "3. " → "4. ",
- * "- [x] " → "- [ ] "). Enter on an empty list item ends the list.
- * Returns null when Enter should behave normally.
- */
-export function continueList(value, selStart, selEnd) {
-  if (selStart !== selEnd) return null;
-  const lineStart = value.lastIndexOf("\n", selStart - 1) + 1;
-  const line = value.slice(lineStart, selStart);
-  const match = line.match(/^(\s*)([-*+] \[[ xX]\] |[-*+] |(\d+)\. |> )/);
-  if (!match) return null;
-
-  const [whole, indent, marker, number] = match;
-  if (line.trim() === marker.trim() || line === whole) {
-    // Empty item: remove the marker instead of continuing.
-    return { start: lineStart, end: selStart, text: "", selStart: lineStart, selEnd: lineStart };
-  }
-  let next = marker;
-  if (number) next = `${Number(number) + 1}. `;
-  else if (/\[[ xX]\]/.test(marker)) next = marker.replace(/\[[xX]\]/, "[ ]");
-  const text = `\n${indent}${next}`;
   return { start: selStart, end: selEnd, text, selStart: selStart + text.length, selEnd: selStart + text.length };
 }
 

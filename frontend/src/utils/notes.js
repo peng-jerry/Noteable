@@ -120,7 +120,7 @@ export function markdownToText(md) {
           .replace(/^(\s*)[-*+] \[ \] /, "$1☐ ")
           .replace(/^(\s*)[-*+] /, "$1• ")
           .replace(/^\s*([-*_])(\s*\1){2,}\s*$/, "————")
-          .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+          .replace(/!\[([^\]]*)\]\([^)]*\)/g, (_m, alt) => `[${alt || "Image"}]`)
           .replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, "$1 ($2)")
           .replace(WIKI_LINK, "$1")
           .replace(/(\*\*|__|\*|~~|`)(?=\S)([^]*?\S)\1/g, "$2")

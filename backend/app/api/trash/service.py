@@ -32,6 +32,10 @@ def purge_expired(user_id: str | None = None) -> int:
     # Deleting a folder row cascades to its subfolders and notes in the database.
     removed += folders.delete(synchronize_session=False)
     db.session.commit()
+    # Images no longer used by any note, version or template go too.
+    from ..attachments.service import purge_orphans
+
+    removed += purge_orphans(user_id)
     return removed
 
 

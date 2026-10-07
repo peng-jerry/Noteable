@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { transferApi } from "../api";
-import { ACCEPT, batchFiles, collectImportFiles } from "../utils/importFiles";
+import { attachmentsApi, transferApi } from "../api";
+import { ACCEPT, batchFiles, collectImportFiles, referencedImages, relinkImages, uploadImages } from "../utils/importFiles";
 import { useWorkspace } from "../workspace/WorkspaceContext";
 import Dialog from "./Dialog";
 import Icon from "./Icon";
@@ -15,7 +15,7 @@ export default function ImportDialog({ open, folder, initialFiles, onClose }) {
   const { refresh } = useWorkspace();
   const inputRef = useRef(null);
   const [phase, setPhase] = useState("pick"); // pick | working | done
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [progress, setProgress] = useState({ done: 0, total: 0, what: "notes" });
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [over, setOver] = useState(false);
@@ -25,7 +25,7 @@ export default function ImportDialog({ open, folder, initialFiles, onClose }) {
     setPhase("pick");
     setResult(null);
     setError("");
-    setProgress({ done: 0, total: 0 });
+    setProgress({ done: 0, total: 0, what: "notes" });
     if (initialFiles?.length) run(initialFiles);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -33,15 +33,30 @@ export default function ImportDialog({ open, folder, initialFiles, onClose }) {
   async function run(fileList) {
     setPhase("working");
     setError("");
-    const { files, skipped } = await collectImportFiles(fileList);
+    const collected = await collectImportFiles(fileList);
+    let { files } = collected;
+    const { images, doodles, skipped } = collected;
     if (!files.length) {
-      setResult({ notes: 0, folders: 0, skipped });
+      setResult({ notes: 0, folders: 0, images: 0, skipped });
       setPhase("done");
       return;
     }
+    const totals = { notes: 0, folders: 0, images: 0, skipped: [...skipped] };
+
+    // Pictures first, so the notes can point at them.
+    const wanted = referencedImages(files, images);
+    if (wanted.length) {
+      setProgress({ done: 0, total: wanted.length, what: "pictures" });
+      const uploaded = await uploadImages(wanted, images, doodles, attachmentsApi.upload, (done) =>
+        setProgress((p) => ({ ...p, done })),
+      );
+      totals.images = uploaded.idByPath.size;
+      totals.skipped.push(...uploaded.skipped);
+      files = relinkImages(files, uploaded.idByPath);
+    }
+
     const batches = batchFiles(files);
-    setProgress({ done: 0, total: files.length });
-    const totals = { notes: 0, folders: 0, skipped: [...skipped] };
+    setProgress({ done: 0, total: files.length, what: "notes" });
     try {
       for (const batch of batches) {
         const res = await transferApi.importBatch(folder?.id ?? null, batch);
@@ -76,7 +91,7 @@ export default function ImportDialog({ open, folder, initialFiles, onClose }) {
         >
           <Icon name="upload" size={28} />
           <p>
-            Drop <strong>.md</strong>, <strong>.txt</strong> or <strong>.zip</strong> files here, or
+            Drop <strong>.md</strong>, <strong>.txt</strong> or <strong>.zip</strong> files (and their pictures) here, or
           </p>
           <button type="button" className="btn btn-primary" onClick={() => inputRef.current?.click()}>
             Choose files
@@ -100,7 +115,7 @@ export default function ImportDialog({ open, folder, initialFiles, onClose }) {
         <div className="import-progress">
           <Spinner size={22} />
           <p>
-            Importing… {progress.total ? `${progress.done} of ${progress.total}` : "reading files"}
+            Importing {progress.what}… {progress.total ? `${progress.done} of ${progress.total}` : "reading files"}
           </p>
           {progress.total > 0 && <progress value={progress.done} max={progress.total} />}
         </div>
@@ -116,6 +131,12 @@ export default function ImportDialog({ open, folder, initialFiles, onClose }) {
           )}
           <p>
             <Icon name="check" className="ok" /> Imported <strong>{result.notes}</strong> note{result.notes === 1 ? "" : "s"}
+            {result.images ? (
+              <>
+                {" "}
+                with <strong>{result.images}</strong> picture{result.images === 1 ? "" : "s"}
+              </>
+            ) : null}
             {result.folders ? (
               <>
                 {" "}

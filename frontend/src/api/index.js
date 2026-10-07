@@ -93,7 +93,36 @@ export const transferApi = {
   /** Import one batch: files = [{ path, content }]. */
   importBatch: (folderId, files) =>
     request("/import", { method: "POST", body: { folder_id: folderId, files } }),
-  /** Download a .zip of a folder (or everything). Returns a Blob. */
-  exportZip: (folderId) =>
-    request("/export", { query: { folder_id: folderId }, responseType: "blob" }),
+  /** Download a .zip of a folder, one note ({ noteId }), or everything. Returns a Blob. */
+  exportZip: (folderId, { noteId } = {}) =>
+    request("/export", { query: { folder_id: folderId, note_id: noteId }, responseType: "blob" }),
+};
+
+/** Build the multipart body for an image upload. */
+function imageForm({ blob, kind, width, height, noteId, doodle }) {
+  const form = new FormData();
+  const ext = (blob.type.split("/")[1] || "png").replace("jpeg", "jpg");
+  form.append("file", blob, `${kind}.${ext}`);
+  form.append("kind", kind);
+  if (width) form.append("width", String(Math.round(width)));
+  if (height) form.append("height", String(Math.round(height)));
+  if (noteId) form.append("note_id", noteId);
+  if (doodle) form.append("doodle", JSON.stringify(doodle));
+  return form;
+}
+
+export const attachmentsApi = {
+  /** upload({ blob, kind: "photo"|"doodle"|"image", width, height, noteId, doodle }) */
+  upload: (fields) =>
+    request("/attachments", { method: "POST", body: imageForm(fields) }).then((d) => d.attachment),
+  replace: (attachmentId, fields) =>
+    request(`/attachments/${id(attachmentId)}`, { method: "PUT", body: imageForm(fields) }).then((d) => d.attachment),
+  /** The image bytes and kind, as { blob, kind }. */
+  fetch: async (attachmentId, opts) => {
+    const res = await request(`/attachments/${id(attachmentId)}`, { ...opts, responseType: "response" });
+    return { blob: await res.blob(), kind: res.headers.get("X-Attachment-Kind") || "image" };
+  },
+  doodle: (attachmentId, opts) =>
+    request(`/attachments/${id(attachmentId)}/doodle`, opts).then((d) => d.doodle),
+  remove: (attachmentId) => request(`/attachments/${id(attachmentId)}`, { method: "DELETE" }),
 };

@@ -103,3 +103,66 @@
   max-width: 100%;
   border-radius: 8px;
 }
+
+/* Nested lists, outline style: • → ◦ → ▪ and 1. → a. → i. */
+.markdown-body ul { list-style-type: disc; }
+.markdown-body ul ul,
+.markdown-body ol ul { list-style-type: circle; }
+.markdown-body ul ul ul,
+.markdown-body ol ul ul,
+.markdown-body ul ol ul,
+.markdown-body ol ol ul { list-style-type: square; }
+.markdown-body ol { list-style-type: decimal; }
+.markdown-body ol ol,
+.markdown-body ul ol { list-style-type: lower-alpha; }
+.markdown-body ol ol ol,
+.markdown-body ul ol ol,
+.markdown-body ol ul ol,
+.markdown-body ul ul ol { list-style-type: lower-roman; }
+.markdown-body li > ul,
+.markdown-body li > ol { margin: 0.2em 0 0; }
+
+/* Checklists: tick boxes in the preview; done items are struck through. */
+.markdown-body li.task-list-item > input[type="checkbox"]:not(:disabled) { cursor: pointer; }
+.markdown-body li.task-list-item:has(> input:checked) {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+.markdown-body li.task-list-item:has(> input:checked) li { text-decoration: none; }
+
+/* Pictures stored in Noteable */
+.markdown-body .attachment {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.markdown-body .attachment img { display: block; max-width: 100%; height: auto; }
+.markdown-body .attachment.is-doodle img { border: 1px solid var(--border); border-radius: 8px; }
+.attachment-edit {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  box-shadow: var(--shadow);
+  transition: opacity 0.15s ease;
+}
+.attachment:hover .attachment-edit,
+.attachment-edit:focus-visible { opacity: 1; }
+@media (hover: none) { .attachment-edit { opacity: 1; } }
+.attachment-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: min(100%, 320px);
+  height: 160px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.85rem;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.attachment-placeholder.error { animation: none; }
+.attachment-placeholder .icon { width: 16px; height: 16px; }

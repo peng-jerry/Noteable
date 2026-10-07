@@ -1,354 +1,521 @@
-# Prompt Log
+# Prompt log: Noteable
 
-A record of the prompts that shaped Noteable and the key decisions made in
-response. New entries are added at the bottom as the project grows.
+> **✏️ Jerry: three sections near the top are marked "To write".** They're
+> reflections the course wants from you. Each box lists facts from the project
+> to draw on. Delete the boxes (and this note) once you've written them. The
+> prompts further down are your messages **verbatim**, including typos.
+> "Selected:" lines are your answers to Claude's multiple-choice questions.
+> "Result:" notes summarise what came back.
 
----
+## Tools used
 
-## Prompt 1: Project setup and backend
+- **Claude Code** (Anthropic), model **Claude Opus 5.5**, running in the VS Code
+  extension. Used for all of it: clarifying questions and feature
+  brainstorming, writing the backend, frontend, tests and docs, running and
+  debugging them, and the portfolio integration.
+- **Development and testing tools Claude ran:** pytest (backend tests, on
+  SQLite and a throwaway PostgreSQL server), Vitest + Testing Library
+  (frontend tests), Playwright (scripted runs in a real Chromium browser,
+  outside the repo), and a local server that mimics GitHub Pages.
+- **Services I set up myself:** GitHub (repos), Neon (PostgreSQL database),
+  Render (backend hosting).
 
-> Build a new repo folder titled "Noteable". I want to build a note-taking app
-> which will work through my portfolio for a school project with the following
-> features: Authentication, Public/private routing, User-specific document
-> storage, Create/edit/delete notes, Markdown or rich-text editor, Folders,
-> Responsive UI.
->
-> Eventually, this will become one part of a larger website, so design the
-> backend to be suitable for future additional work. The plan is to host it
-> through Render.
->
-> Should include a README & a prompt log, which must be two separate files;
-> update these as things are added. Create the frontend and backend in separate
-> folders. Good error handling.
->
-> I will add more features in the following prompts. Start with creating any
-> sections needed for the backend. Ask all questions before you begin.
+### Which tool for which job
 
-### Clarifying questions and answers
+> **To write (a sentence or two):** which tool you used for which part, and
+> *why*. Facts: everything ran through Claude Code. Its clarifying questions
+> served as the brainstorming and design step (you picked from options), it
+> wrote and tested the code, and debugging happened in the same session (e.g.
+> you pasted the Render error log). If you used anything else (ChatGPT, docs,
+> Render's dashboard logs, your browser's dev tools), mention it and why.
 
-Before writing any code, I asked eight questions:
+## Development process
 
-1. **Backend stack:** Flask / Node + Express / FastAPI.
-   → **Flask + SQLAlchemy**, the same Python/Flask setup as my PDF Combiner,
-   using an app-factory and blueprint layout so new features can be added as modules.
-2. **Database:** Neon/Supabase Postgres / Render Postgres / MongoDB / SQLite.
-   → **Neon/Supabase Postgres** (free and doesn't expire; Render's free
-   Postgres expires after ~30 days). SQLite is used for local development.
-3. **Authentication:** email + password with JWT / session cookies / Google OAuth.
-   → **Email + password with JWT** in the `Authorization` header. This avoids
-   cross-site cookie problems between `github.io` and `onrender.com`, and the
-   same accounts can be reused by future parts of the site.
-4. **Frontend build and hosting:** React + Vite → github.io / plain HTML/JS / React → Render.
-   → **React + Vite**, built into `peng-jerry.github.io/noteable`.
-5. **Editor:** Markdown + live preview / rich text / both.
-   → **Markdown with live preview**, stored as plain text.
-6. **Folders:** nested / single level.
-   → **Nested folders** (a `parent_id` tree).
-7. **Git:** own repo / no git.
-   → **Its own git repo** with a `.gitignore`. No commits unless asked.
-8. **Docs layout:** one README + prompt log at the root / plus per-folder READMEs.
-   → **One `README.md` and one `prompt_log.md` at the root.**
+All work happened between **4 and 7 October 2026**, in this order:
 
-### What was built
+1. **Planning and backend** (Prompt 1): 8 design questions answered first, then
+   the Flask API (auth, folders, notes), migrations, a 39-test suite, and Render
+   config.
+2. **Accounts** (Prompt 2), then the **frontend** (Prompt 3): 4 more design
+   questions, then the React app, 32 tests, and a browser test run that found
+   and fixed real bugs.
+3. **Deployment** (Prompts 4–6): Neon and Render set up; the Render start-command
+   failure debugged from the pasted log; the real Render URL found; the app,
+   write-up page and project card added to the portfolio and tested against
+   the live backend.
+4. **Portfolio restructure** (Prompt 7): all projects moved under `projects/`,
+   with redirects for old links.
+5. **Feature round** (Prompt 8): 12 more design questions, then tags, search,
+   sorting, templates, import/export, trash, version history, `[[links]]`, drag
+   & drop, offline-safe autosave and resizable panes. Tests went to 67 backend
+   and 51 frontend, plus 25-step and 19-step browser runs.
+6. **Documentation for submission** (Prompt 9).
+7. **My own code change** (Prompts 10–11): I added a built-in template
+   (`builtin-jerry`) to `backend/app/api/templates/builtins.py`, asked Claude
+   to check the syntax, fixed the Markdown issues it pointed out, and had it
+   recheck.
+8. **Drawing, pictures and editing round** (Prompt 12): 7 more design
+   questions, then doodles, the camera, image storage, tables, list
+   buttons on empty lines, Tab nesting, and clickable checklists. Tests went
+   to 75 backend and 73 frontend, plus a 15-step browser run that includes a
+   fake camera.
+9. **Requirements check** (Prompt 13): reviewed the README, prompt log,
+   repos and live site against the course requirements.
 
-- **Folder layout:** `backend/` and `frontend/` (an empty placeholder for now),
-  `render.yaml` at the root.
-- **App factory** (`app/__init__.py`) with config classes for development,
-  testing and production, chosen by `APP_ENV`. Production refuses to start
-  without its secrets.
-- **Versioned, modular API:** every feature is a blueprint nested under
-  `/api/v1`, with a documented 4-step recipe for adding new features later.
-- **Models:** `User`, `Folder` (self-referencing for nesting), `Note`, and
-  `TokenBlocklist`. All use UUID primary keys, UTC timestamps and
-  `ON DELETE CASCADE` foreign keys.
-- **Auth:** register, login, refresh, logout (revokes tokens), profile
-  get/update, change password (invalidates all older tokens), and delete
-  account (requires the password and a fresh token).
-- **Folders:** CRUD, breadcrumb path, note counts, unique sibling names, cycle
-  prevention, a 10-level depth limit, and cascading delete.
-- **Notes:** CRUD, filter by folder or unfiled, search, pinned filter, sorting,
-  and pagination. List responses return summaries with an excerpt.
-- **Error handling:** one JSON error format (`{error: {code, message,
-  details}}`) for everything: validation (per-field), malformed JSON, auth/JWT
-  failures (separate codes so the frontend knows when to refresh), 404/405/413/429,
-  database errors (rolled back, with 503 when the DB is down), and unexpected
-  exceptions (logged, never leaked).
-- **Security:** scrypt password hashing, login responses that don't reveal
-  which emails exist, per-IP rate limiting on auth routes, CORS restricted to
-  configured origins, a request size limit, and unknown fields rejected.
-  Another user's data returns 404, never 403.
-- **Migrations:** Flask-Migrate/Alembic with the initial schema. Render runs
-  `db upgrade` on each deploy.
-- **Tests:** a 39-test pytest suite. It passes on both SQLite and PostgreSQL,
-  and the migration was checked upgrading, downgrading and upgrading again on
-  Postgres.
-- **Deployment:** `render.yaml` Blueprint (gunicorn, health check, generated
-  secrets, `DATABASE_URL` entered by hand).
+### Parts I wrote or substantially changed myself
 
----
+> **To write:** be specific and honest. As far as this session shows, Claude
+> made the code changes, and your work was the requirements, every design
+> decision (≈37 multiple-choice answers plus the Render URL), creating the
+> GitHub repo and the commits, setting up Neon and Render, catching and
+> reporting the Render deploy failure, and reviewing the results. **You also
+> wrote the `builtin-jerry` template in `backend/app/api/templates/builtins.py`
+> yourself** (Prompts 10–11): describe what you added, what Claude flagged
+> (bullets missing the space after `-`, `# ## Morning`, and the id naming), and
+> how you fixed it. If you edited any other files yourself, list them here.
 
-## Prompt 2: Which services need an account?
+## One place AI got it wrong
 
-> what services do I need an account for
-
-Answered in chat, with no code changes. You need three accounts, all on free
-plans: **GitHub** (already have it; hosts the code and the portfolio frontend),
-**Render** (runs the backend API) and **Neon** (Postgres database; Supabase
-works instead). Node.js needs to be installed locally but doesn't need an account.
-
----
-
-## Prompt 3: Build the frontend
-
-> cool, start creating the frontend next, don't change anything in the
-> portfolio yet, just in noteable
-
-### Clarifying questions and answers
-
-1. **Node.js** wasn't installed. → **A dedicated conda env `noteable`** with
-   Node (`conda activate noteable`), so nothing system-wide changes.
-2. **Look:** match the portfolio or a distinct identity? → **Match the
-   portfolio**: same dark navy / sky / indigo tokens, IBM Plex fonts, grid
-   background, plus a light/dark toggle.
-3. **Saving:** autosave or a manual save button? → **Autosave**, with a
-   saving / saved status and a warning about unsaved changes.
-4. **Editor layout:** → **Split editor + preview on desktop, Write/Preview tabs
-   on phones**, with a formatting toolbar.
-
-### Key decisions
-
-- **React 19 + Vite 8 + React Router 8**, plain CSS (no UI framework) built on
-  the portfolio's design tokens. `react-markdown` + `remark-gfm` for previews,
-  lazy-loaded so the login page doesn't download them.
-- **Hash routing**, because GitHub Pages only serves the portfolio's root
-  `404.html`, so normal deep links would break on reload under `/noteable/`.
-- **The build uses the `/noteable/` base path**, ready to copy into the
-  portfolio later. The portfolio itself was **not** touched, as requested.
-- **Public / public-only / private route guards.** After logging in, users go
-  back to the page they originally asked for.
-- **The API client** refreshes expired tokens once, shared across concurrent
-  requests, and turns network errors, timeouts (generous enough for Render cold
-  starts) and non-JSON errors into one `ApiError` type.
-- **Autosave hook:** debounced, sends only changed fields, one save at a time,
-  merges edits made during a save, keeps failed saves for retry, saves on note
-  switch, warns before closing the tab.
-- **Responsive layout:** three panes on desktop, a folder drawer on tablets,
-  one pane at a time on phones.
-
-### Testing and fixes
-
-- **32 Vitest tests:** folder-tree and Markdown helpers, validation, the API
-  client's refresh and error handling, the autosave hook, and auth routing.
-- **An end-to-end run in headless Chromium against the real Flask backend:**
-  register, folders, notes, autosave, a reload to check persistence, search,
-  pin, move, delete, settings, logout. Screenshots at desktop, tablet and phone
-  sizes. The production build was also checked when served from `/noteable/`.
-- **Bugs found this way and fixed:**
-  - Deleting the folder you were viewing left the app on the deleted folder's URL.
-  - A misleading "couldn't save" toast appeared when a note's folder was
-    deleted mid-autosave.
-  - Search sync trimmed spaces while typing.
-  - `vite preview` used the wrong base path.
-  - Polish: weak contrast on the primary and danger buttons, sticky hover on
-    touch screens, raw Markdown in list excerpts, and a missing label on the
-    phone's "New note" button.
+> **To write (one short paragraph):** pick one and say what happened and what
+> you did about it. Real examples from this project:
+> - **Confidently wrong URL.** Claude assumed the backend would live at
+>   `noteable-api.onrender.com` (from the service name in `render.yaml`) and put
+>   that address in the frontend config and docs. Render had given that name to
+>   someone else's service, so the build would have sent your users' logins to
+>   a stranger's API. It was caught only when the health check returned a
+>   response in the wrong format, and fixed with the real URL you supplied
+>   (`noteable-e5ba.onrender.com`).
+> - **Assumed one deploy path.** The setup steps assumed Render's Blueprint
+>   flow. You created a plain Web Service instead, so Render ran its default
+>   `gunicorn app:app` and crashed. You pasted the log, and the fix was the
+>   Start Command and environment variables.
+> - **A migration that would have broken production.** In the feature round,
+>   the auto-generated database migration wrote a boolean default in a form
+>   SQLite accepts but PostgreSQL rejects. All 67 tests still passed, because
+>   they run on SQLite by default. It was only caught by testing the migration
+>   on Postgres with existing data.
+> - **Bugs it introduced and only browser runs caught:**
+>   - Deleting the folder you were viewing left the app on a dead page.
+>   - A dialog wiped text typed the instant it opened.
+>   - Every tag showed as grey because of a CSS ordering mistake.
+>   - Drag & drop read internal IDs to screen readers instead of names.
+> - **Tool misuse.** Three times it ran a "kill the server" command whose
+>   pattern matched its own command line, so it killed its own shell
+>   (`exit code 144`) before changing approach.
+> - **A bug it couldn't explain (Prompt 12).** The doodle dialog was meant to
+>   ask before discarding a drawing, but Escape closed it immediately. Debug
+>   logging showed the drawing pad *was* reporting "unsaved strokes" to its
+>   parent, yet the parent never updated. Claude couldn't find out why. It
+>   restructured the code to avoid that hand-off instead (the pad answers close
+>   requests itself), and the browser test confirmed the fix.
+> - **Didn't account for Markdown's own rules.** Its first versions put
+>   inserted pictures directly after a table (Markdown then treats the picture
+>   as another table row), and ended quotes or lists without a blank line (so
+>   the next paragraph was pulled into them). Both were only noticed in
+>   screenshots from the browser test, then fixed.
 
 ---
 
-## Prompt 4: Neon and Render setup
+## Prompts
 
-> what do I now need to setup through neon & render
+### Prompt 1: Project setup and backend
 
-Answered in chat, with no code changes:
-- **Neon:** create a project in AWS US West 2 (Oregon), close to Render's
-  default region, and copy the direct (not pooled) connection string.
-- **GitHub:** push the repo.
-- **Render:** New → Blueprint, paste the string as `DATABASE_URL`, and check
-  `/api/v1/health`.
-- Also given: the manual Web Service settings as a fallback, and a reminder to
-  update `frontend/.env.production` if the Render URL differs.
+```
+Alright, now build a new repo folder titled "Noteable", in this folder
 
----
+I want to build a note taking app which will  work through my portfolio for a school project with the following features:
 
-## Prompt 5: Render deploy error
+Authentication
+Public/private routing
+User-specific document storage
+Create/edit/delete notes
+Markdown or rich-text editor
+Folders
+Responsive UI
 
-> (pasted Render log) `gunicorn.errors.AppImportError: Failed to find attribute 'app' in 'app'.` … `Running 'gunicorn app:app'`
+Eventually, this will become one part of a larger website so design the backend to be suitable for future additional work
+The plan is to host it through render
 
-**Cause:** the service was created as a plain Web Service, so Render ran its
-default start command, `gunicorn app:app`, instead of the one in `render.yaml`.
-That also skipped the database migrations.
+Should include a Readme & a prompt log, which must be two separate files, update these are things are added
+Create the frontend and backend in separate folders
+Good error handling
 
-**Fix (Render settings, no code change):** Root Directory `backend`, Start
-Command `flask --app wsgi db upgrade && gunicorn wsgi:app --workers 2 --timeout 60`,
-Health Check Path `/api/v1/health`, plus the required environment variables.
-Added a troubleshooting note about this error to the README's deployment section.
+I will add more features in the following prompts
 
----
+Start with creating any sections needed for the backend
 
-## Prompt 6: Add Noteable to the portfolio
+Ask all questions before you begin
+```
 
-> render & neon have been setup, create the intial copy of the project inside my portfolio
+**Selected** (8 questions):
+- **Backend:** Flask + SQLAlchemy
+- **Database:** Neon/Supabase Postgres
+- **Auth:** Email + password, JWT
+- **Frontend:** React + Vite → github.io
+- **Editor:** Markdown + live preview
+- **Folders:** Nested folders
+- **Git:** Yes, git init + .gitignore
+- **Docs:** One of each at the root
 
-### Clarifying questions and answers
+**Result:**
+- **Backend:** a Flask app factory with a blueprint per feature under a
+  versioned `/api/v1`; JWT auth with refresh, logout revocation and
+  password-change invalidation; nested folders with cycle and depth checks;
+  notes with search, sort and pagination.
+- **Error handling:** one JSON error format for every failure; rate limiting.
+- **Database and deploy:** Alembic migrations and a `render.yaml` Blueprint.
+- **Tests:** 39 pytest tests, passing on SQLite and PostgreSQL.
 
-1. **Render URL.** `noteable-api.onrender.com` answered the health check, but
-   with someone else's API (wrong response shape), so Render must have given
-   this service a different name. → **`https://noteable-e5ba.onrender.com`**.
-   Its health check showed `"service": "Noteable API"`, `"database": "ok"`, and
-   CORS allowed `https://peng-jerry.github.io`.
-2. **Scope.** → **Same as the PDF Combiner:** the app folder, a write-up page,
-   and a projects card.
+### Prompt 2: Accounts
 
-### What was done
+```
+what services do I need an account for
+```
 
-- `frontend/.env.production` now points at the real Render URL.
-- **Portfolio changes (not committed or pushed):**
-  - `noteable/`: the production build.
-  - `project12/index.html`: the write-up page. Header and footer copied from
-    `project11`. It covers the three deployed pieces, auth and private routes,
-    nested folders, autosave, the extensible backend, and the bugs testing and
-    deployment caught.
-  - `assets/project_cards/Noteable.png`: the card screenshot, taken from a
-    local copy filled with demo notes so no demo data went into the live database.
-  - `projects.html`: a new card after the PDF Combiner's.
-- **Checked end to end against the live backend** by serving the portfolio
-  locally from an allowed origin. Went card → write-up → app, registered a
-  throwaway account, created and autosaved a note, reloaded, then deleted the
-  account and confirmed it was gone.
-- **README:** added the live links, marked the backend, database and frontend
-  as deployed, and wrote the rebuild-into-the-portfolio command.
+**Result:** Answered in chat: GitHub (already had it), Render (backend),
+Neon (database). Node.js needs installing locally but no account.
 
----
+### Prompt 3: Frontend
 
-## Prompt 7: Reorganise the portfolio into `projects/`
+```
+cool, start creating the frontend next, don't change anything in the portfolio yet, just in noteable
+```
 
-> put all project folders into a folder labeled "projects", move assets into there as well
+**Selected** (4 questions):
+- **Node.js:** Conda env 'noteable'
+- **Look:** Match my portfolio
+- **Saving:** Autosave
+- **Editor:** Split + tabs on mobile
 
-### Clarifying questions and answers
+**Result:**
+- **App:** React 19 + Vite + React Router 8 with hash routing (GitHub Pages
+  only serves the portfolio's own 404 page), public / public-only / private
+  route guards, and an API client that refreshes expired tokens once and
+  retries.
+- **Editing:** an ordered autosave queue; a Markdown editor with toolbar and
+  live preview.
+- **Layout:** three panes on desktop, a drawer on tablets, one pane at a time
+  on phones.
+- **Tests:** 32 Vitest tests, plus a headless-Chromium run of the whole app.
+- **Bugs found and fixed:**
+  - Deleting the folder you were viewing left the app stuck on it.
+  - The search box trimmed spaces while typing.
+  - The production preview used the wrong base path.
+  - Button contrast, touch-screen hover, raw Markdown in excerpts, and a
+    missing screen-reader label.
 
-1. **Which folders?** → **All 17:** `project1`–`project12`, `portfolio/`,
-   `crossyroad/`, `pdf-combiner/`, `trivia-game/` and `noteable/`.
-2. **Which assets?** → **Project images only** (per-project image folders and
-   card thumbnails) go to `projects/assets/`. The profile photo and resume stay
-   in `/assets`.
-3. **Old URLs?** → **Redirect them** with a root `404.html`.
+### Prompt 4: Neon and Render setup
 
-### What was done (in the portfolio repo)
+```
+what do I now need to setup through neon & render
+```
 
-- Moved the folders with `git mv`, so their history is kept.
-- Rewrote 48 links and image paths across 13 pages to the new
-  `/projects/…` locations. That includes the CrossyRoad and PDF Combiner
-  back-links and the trivia-game GitHub link.
-- **Noteable:** default build base changed to `/projects/noteable/` in
-  `frontend/vite.config.js`, rebuilt into `projects/noteable/`, and the README
-  paths updated.
-- **New root `404.html`.** GitHub Pages serves it for any missing path. Its
-  script forwards old addresses (e.g. `/project11/`, `/noteable/#/login`) to
-  their new location, keeping the query string and `#` part. Anything else gets
-  a "page not found" page styled like the rest of the site.
-- Refreshed the portfolio README's layout section.
+**Result:** Step-by-step instructions: a Neon project in AWS US West 2, using the
+direct connection string; push to GitHub; Render → New → Blueprint, then paste
+`DATABASE_URL`; check `/api/v1/health`. The manual Web Service settings were
+given as a fallback.
 
-### Checks
+### Prompt 5: Render deploy error
 
-Ran a local server that mimics GitHub Pages:
-- All 54 internal links and images on 19 pages resolve.
-- 9 old URLs redirect correctly, and unknown URLs show the 404 page.
-- Every project card image loads.
-- Noteable works at `/projects/noteable/` and reaches the live Render API
-  (tested with a failed login, so no data was created).
-- The apps' back-links go to the moved write-ups.
-- The 32 frontend tests still pass.
+```
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 463, in import_app
+    app = getattr(mod, name)
+          ^^^^^^^^^^^^^^^^^^
+AttributeError: module 'app' has no attribute 'app'
+During handling of the above exception, another exception occurred:
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/bin/gunicorn", line 8, in <module>
+    sys.exit(run())
+             ^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 66, in run
+    WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]", prog=prog).run()
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 235, in run
+    super().run()
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 71, in run
+    Arbiter(self).run()
+    ^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 63, in __init__
+    self.setup(app)
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 164, in setup
+    self.app.wsgi()
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 467, in import_app
+    raise AppImportError("Failed to find attribute %r in %r." % (name, module))
+gunicorn.errors.AppImportError: Failed to find attribute 'app' in 'app'.
+==> Exited with status 1
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Running 'gunicorn app:app'
+```
 
----
+**Result:** The service had been created as a plain Web Service, so Render ran
+its default start command and skipped the migrations. The fix was in Render's
+settings: Root Directory `backend`, Start Command
+`flask --app wsgi db upgrade && gunicorn wsgi:app --workers 2 --timeout 60`,
+plus the required environment variables. A troubleshooting note was added to
+the README.
 
-## Prompt 8: The big feature round
+### Prompt 6: Add Noteable to the portfolio
 
-> Now I want to incorporate the following features: Tags, Search, Sorting,
-> Templates/Template Creation, Import Markdown/text, Export, Trash/restore,
-> Autosave, Adjustable Window widths. Are there any additional things do you
-> think I can add? Ask all questions before you begin
+```
+render & neon have been setup, create the intial copy of the project inside my portfolio
+```
 
-Search, sorting and autosave already existed, so they were treated as
-upgrades. I suggested extra features and asked three rounds of questions.
+Claude found that `noteable-api.onrender.com` answered with **someone else's**
+API, then asked for the real URL and how much to add (app only, or the same as
+the PDF Combiner). Reply:
 
-### Answers
+```
+B, same as PDF combiner
+https://noteable-e5ba.onrender.com
+```
 
-- **Extra features chosen:** version history, note links & backlinks, drag &
-  drop, duplicate & starred folders, note stats & outline. (Declined: quick
-  switcher, code highlighting, public share links.)
-- **Upgrades chosen:** better search (ranked full-text, highlighted matches,
-  `tag:` filter), more sort options (per-view memory, Z–A / oldest, manual
-  drag order), offline-safe autosave.
-- **Tags:** coloured and managed, with multi-tag AND filtering.
-- **Templates:** built-in plus your own, with placeholders, stored on the account.
-- **Import:** files plus `.zip` with folders.
-- **Export:** single note `.md` / `.txt`, PDF/print, and folder or
-  everything as `.zip`.
-- **Trash:** 30 days, folders included.
-- **Widths:** drag plus collapse, saved per browser.
-- **Versions:** automatic every 10 minutes plus manual.
-- **Links:** update automatically on rename.
-- **Portfolio:** rebuild and update the write-up.
+**Result:**
+- **Config:** checked that the real URL reported `"service": "Noteable API"`,
+  a working database, and CORS allowing the portfolio; fixed
+  `.env.production`.
+- **Portfolio:** built the app into the portfolio, plus a write-up page
+  (`project12`), a card screenshot (taken with demo data from a local copy)
+  and a projects-grid card.
+- **Verified** end to end against the live backend: registered a throwaway
+  account, created a note, then deleted the account.
 
-### What was built
+### Prompt 7: Reorganise the portfolio
 
-**Backend.** One migration adds the `tags`, `note_tags`, `templates`,
-`note_versions` and `note_links` tables. Notes gain `position`, `deleted_at` and
-`trashed_with`; folders gain `is_starred`, `deleted_at` and `trashed_with`.
+```
+put all project folders into a folder labeled "projects", move assets into there as well
+```
 
-- **New modules:** `tags/`, `templates/` (5 built-ins in code), `trash/` (with
-  30-day purge on trash view, on login and via `flask purge-trash`), and
-  `transfer/` (import with front matter, zip export).
-- **Notes:** `notes/service.py` holds the tag, link, version and search logic.
-  New endpoints for titles, reorder, duplicate, backlinks and versions; delete
-  now moves to the trash. Search requires every term (partial words), supports
-  `tag:` and phrases, and ranks with `ts_rank_cd` on Postgres. Renaming a note
-  rewrites `[[links]]` to it.
+**Selected** (3 questions):
+- **Folders:** All 17
+- **Assets:** Project images only
+- **Old links:** Redirect via 404.html
 
-**Frontend:**
-- **Shared state:** a `WorkspaceContext` for folders, tags, titles, trash count
-  and templates.
-- **Panes:** a three-pane shell with draggable dividers (pointer and keyboard),
-  collapsible sidebar and list, sizes saved per browser.
-- **Drag & drop:** with `@dnd-kit` (mouse, touch long-press, keyboard for
-  manual order), plus readable screen-reader announcements.
-- **New pages and UI:** Trash and Templates panes; a tag input with
-  autocomplete; a New-note split button with templates; an import dialog (zip
-  via `fflate`, batched uploads); a version history dialog with a line diff
-  (`diff`); a details panel (outline, stats, backlinks); `[[` autocomplete at
-  the caret; a print/PDF view; `.md` / `.txt` export.
-- **Autosave:** keeps drafts in `localStorage` until the server confirms them,
-  retries with back-off and when back online, and offers recovery when the
-  note is reopened.
-- **Bundle splitting:** the signed-in app, version history and import are
-  separate bundles. The main bundle went from 489 kB to 338 kB.
+**Result:**
+- **Moves:** `git mv` of 17 folders and the project images.
+- **Links:** 48 links and image paths rewritten.
+- **Noteable:** rebuilt with the base path `/projects/noteable/`.
+- **Redirects:** a root `404.html` that forwards old URLs (keeping the `#`
+  part).
+- **Verified** with a GitHub-Pages-like local server: 54 links checked and 9
+  old URLs redirected.
 
-### Testing and bugs found
+### Prompt 8: Feature round
 
-- **Backend:** 67 pytest tests (up from 39), passing on SQLite and PostgreSQL.
-- **Migration:** checked on Postgres **with existing rows**. That caught a
-  production-breaking bug: Alembic had written the new boolean column's default
-  as SQLite's `0`, which Postgres rejects. It now uses `sa.false()`.
-- **Frontend:** 51 Vitest tests (up from 32): link and outline helpers,
-  templates, text export, zip import and batching, sort memory, and autosave
-  drafts and retries.
-- **Browser runs:** a 25-step headless-Chromium run covering every new feature
-  (passing twice in a row), plus the previous 19-step run (passing four times
-  in a row).
-- **Bugs fixed along the way:**
-  - The folder dialog could wipe text typed the instant it opened.
-  - Trashing the folder you were viewing triggered a stale list request (404).
-  - Drag & drop announced internal IDs to screen readers.
-  - Tag colours were all grey because of a CSS specificity tie.
-  - `[[links]]` showed raw in list excerpts.
-  - A version restore at the 50-version limit could prune the version being
-    restored.
-  - A crash mid-save could lose the in-flight edit from the draft.
+```
+Now I want to incorporate the following features:
 
-### Portfolio
+Tags
+Search
+Sorting
+Templates/Template Creation
+Import Markdown/text
+Export
+Trash/restore
+Autosave
+Adjustable Window widths
 
-- `projects/noteable/` rebuilt.
-- The `projects/project12/` write-up now covers the new features (and its
-  stale `/noteable/` paths were fixed).
-- Nothing committed or pushed. The backend must be deployed before the
-  portfolio (see README → Deploying the frontend).
+ 
+
+Are there any additional things do you think I can add? Ask all questions before you begin
+```
+
+Claude pointed out that search, sorting and autosave already existed, so it
+offered upgrades for those, and suggested extra features.
+
+**Selected** (12 questions over 3 rounds):
+- **Extras, writing:** Version history, Note links & backlinks
+- **Extras, organising:** Drag & drop, Duplicate & favourites, Note stats & outline
+- **Upgrades:** Better search, More sort options, Offline-safe autosave
+- **Tags:** Coloured, managed tags
+- **Templates:** Built-in + your own
+- **Import:** Files + .zip with folders
+- **Export:** Single note .md/.txt, Single note PDF/print, Folder or everything as .zip
+- **Trash:** 30-day trash, folders too
+- **Widths:** Drag + collapse, saved on device
+- **Versions:** Auto every ~10 min + manual
+- **Links:** Update links automatically
+- **Portfolio:** Rebuild + update write-up
+
+**Result:**
+- **Backend:**
+  - One migration for tags, templates, versions, links, trash, manual order
+    and starred folders.
+  - New API modules: tags, templates, trash (with 30-day purge) and
+    import/export.
+  - Search ranked with PostgreSQL full-text search; renaming a note rewrites
+    `[[links]]` to it.
+- **Frontend:**
+  - Drag & drop (mouse, touch and keyboard), a tag editor, a template picker
+    and manager, an import dialog (zip unpacked in the browser), and version
+    history with a diff.
+  - An outline / stats / backlinks panel, `[[` autocomplete, print/PDF,
+    resizable panes, and autosave drafts that survive going offline or
+    closing the tab.
+- **Tests:** 67 backend and 51 frontend, plus 25-step and 19-step browser
+  runs.
+- **Bugs caught and fixed:**
+  - A migration default that would have broken the Postgres deploy.
+  - A dialog that wiped quickly typed text.
+  - A stale list request after trashing a folder.
+  - Grey tag colours.
+  - Internal IDs read to screen readers.
+  - Two autosave / version-history edge cases.
+- **Portfolio:** rebuilt, and the write-up updated.
+
+### Prompt 9: Submission requirements
+
+```
+Change HW 5 in portfolio to "Project 2"
+Include any missing pieces in Readme
+
+README.md - must be named README.md and located at the repository root (or inside the project folder if you placed the project in your portfolio repo). The README should explain: what the project does, how to use it, which features you are most proud of, how to run it locally, and how secrets (if any) are handled. (Note that even if you deploy in github pages, this should be a new README for just this project.) Write this yourself, in your own words, and make sure it actually covers the items listed above. It must also briefly summarize how you used AI on this project, along with any citations that are relevant (for example, a model or tool that produced a substantial portion of the code, or an outside source you adapted). We are placing more weight on this than we did on earlier assignments. If you want to include AI-generated documentation as well, that is fine, but put it at the bottom of the README under a heading that clearly labels it as AI-generated.
+
+Include any missing components in Prompt log
+
+Prompt log - titled prompt_log.txt or prompt_log.md, and located in the same folder as your README. It must list which AI model(s)/tools you used, document the development process from start to finish (including which parts of the code were written or substantially modified by you), and include important, non-trivial prompts verbatim rather than AI-written summaries of them. As a whole, this file should make it obvious that you invested roughly 8 hours of work. As a very rough gauge, an 8-hour project that starts from a clear plan and then iterates from there might produce somewhere in the range of 15 to 40 prompts worth logging. Treat that as a rough estimate rather than a target, since we'd rather have a handful of well-constructed prompts over an artificially stretched list.
+
+Two specific things we want to see in this file:
+
+    Which tool for which job. A sentence or two on which model(s) or tool(s) you used for which parts of the work, and why. Brainstorming, writing code, and debugging are often best served by different tools, and choosing deliberately is a skill we want you practicing.
+    One place AI got it wrong. Describe at least one instance where a tool was confidently incorrect, proposed something that couldn't work, or introduced a bug it then couldn't find, and what you did about it. One short paragraph is plenty. These observations are what we use to build the class's shared best practices, and they tend to make for good discussion in your evaluation.
+```
+
+**Result:**
+- **Portfolio:** "HW 5" changed to "Project 2" on the card, the write-up page
+  and the portfolio README.
+- **README:** split into your own sections (left for you to write, as the
+  course requires) followed by the existing docs under "AI-generated
+  documentation".
+- **This log:** rebuilt with verbatim prompts, your selections, the tools
+  used, and spaces for the three required reflections.
+
+### Prompt 10: Checking my own code change
+
+I added a template to `backend/app/api/templates/builtins.py` myself, then
+asked (with the new entry pasted in):
+
+```
+Syntax wise, is this ok?
+```
+
+```python
+{
+        "id": "builtin-project",
+        "name": "Project plan",
+        "description": "Goal, milestones, tasks and risks for a project.",
+        "title": "Project: ",
+        "content": (
+            "# {{title}}\n\n> Started {{date}}\n\n## Goal\n\n\n## Milestones\n| Milestone | Due | Status |\n"
+            "|---|---|---|\n|  |  |  |\n\n## Tasks\n- [ ] \n\n## Risks & open questions\n- \n"
+        ),
+    },
+    {
+        "id": "jerry-template",
+        "name": "Jerry's Template",
+        "description": "Template Created by Jerry in codebase to show engagement with the code",
+        "title": "A Day In The Life Of Jerry",
+        "content": "# ## Morning\n -Ate a donut\n -Coded for 15-113 Project 2\n\n"
+        "## Afternoon\n -Went to class\n -Debugged some Code\n -Stole Haribos Gummy Bears from the Robomechanics Lab\n\n"
+        "## Night\n -Ate dinner\n -Worked on Noteable\n -Hung out with friends\n -Went to sleep",
+    },
+```
+
+**Result:** Claude confirmed the Python was valid (the file imports and the
+tests pass) but pointed out four Markdown and convention issues:
+- **Bullets:** ` -Ate a donut` doesn't render as a list (it needs `- ` with a
+  space).
+- **Heading:** `# ## Morning` makes a heading that literally reads "## Morning".
+- **ID:** it didn't follow the `builtin-` pattern.
+- **Description:** it's shown to users in the template menu.
+
+### Prompt 11: Recheck after my fix
+
+```
+recheck
+```
+
+**Result:** My fixed version (`builtin-jerry`, `# {{title}}`, proper `- `
+bullets) imports cleanly, appears among the built-ins, and all 67 backend tests
+pass.
+
+### Prompt 12: Doodles, pictures, tables and better lists
+
+```
+Ok, next I want to add a "doodle" button which allows the user to draw, a "take a picture" button which allows the user to insert a picture they take, and a "table" button which allow sthe user to create a table inside the note
+
+I also want the bullet to show up when the bulleted list button is pressed rather than it needing something in the line to work
+Same for Numbered List, Checklist, and Quote
+
+I also want cascading numbers & bullets when I press tab for these
+
+Remind me of the sections I need to fill out myself as well
+```
+
+Sent while Claude was working:
+
+```
+Checklist should also be able to be checked off
+```
+
+**Selected** (7 questions over 2 rounds):
+- **Images:** Database attachments
+- **Camera:** In-app camera + upload
+- **Doodle:** Editable doodles
+- **Table:** Size picker + Tab between cells
+- **Nesting:** Outline style (• ◦ ▪, 1. a. i.)
+- **Tab key:** Only indent lists/tables
+- **Export:** Yes, include images
+
+**Result:**
+- **Images:**
+  - An `attachments` table (migration tested on Postgres with existing data)
+    and an `/attachments` API. The real file type is checked from the bytes,
+    SVG is refused, images can be up to 5 MB (on that route only), revalidated
+    with an ETag, and private to their owner.
+  - Unused images are cleaned up after a day.
+  - Exports carry the images; imports upload them and relink the notes.
+- **Editor:**
+  - A doodle pad (pen with stylus pressure, highlighter, eraser, colours,
+    sizes, undo/redo; reopen to edit) and an in-app camera (fake-camera
+    tested) with retake, switch camera and an image picker.
+  - A table size picker, with Tab between cells that adds rows and re-aligns
+    columns.
+- **Lists:**
+  - List buttons work on empty lines.
+  - Tab / Shift+Tab nest items with outline numbering and per-level
+    renumbering, with indent buttons for phones.
+  - Enter on an empty item backs out a level or ends the list with a blank
+    line.
+- **Checklists:** tick boxes in the preview, or `Ctrl/⌘+Enter`.
+- **Bugs found and fixed:**
+  - Escape discarded a drawing without asking.
+  - Pictures inserted after a table became part of it.
+  - Paragraphs after a quote were pulled into it.
+- **Tests:** 75 backend tests and 73 frontend tests; a 15-step browser run.
+
+### Prompt 13: Requirements check
+
+```
+Alright, take a look through and see if there's anything that needs to be updated to meet the project requirements
+```
+
+**Result:** Claude compared the repo, docs and live site with the README and
+prompt-log requirements:
+- **Still to do by me:** the "To write" sections in both files, written in my
+  own words, as the course requires.
+- **Still to commit and deploy:** Prompt 12's work isn't committed, so the live
+  backend has no `/attachments` route yet. The portfolio's "Project 2" label
+  isn't committed either, so the live projects page still says "HW 5".
+- **Fixed:** two stale date ranges ("4–5 October").
+- **Checked:** no secrets are tracked in git, both files are in the right
+  place, and the AI-generated documentation is labelled at the bottom.
+

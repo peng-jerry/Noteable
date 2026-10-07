@@ -16,6 +16,7 @@ If a breaking change is ever needed, add a `v2` parent blueprint alongside
 from flask import Blueprint, Flask
 
 from . import health
+from .attachments.routes import bp as attachments_bp
 from .auth.routes import bp as auth_bp
 from .folders.routes import bp as folders_bp
 from .notes.routes import bp as notes_bp
@@ -33,6 +34,7 @@ FEATURE_BLUEPRINTS = [
     templates_bp,
     trash_bp,
     transfer_bp,
+    attachments_bp,
 ]
 
 

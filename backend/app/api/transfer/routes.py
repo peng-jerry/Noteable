@@ -7,9 +7,12 @@ POST /import   { folder_id?, files: [{ path, content }] }
                name. Optional YAML-style front matter (title, tags, pinned) is
                read and removed. The client unzips archives and sends files in
                batches, so this endpoint stays under the request size limit.
-GET  /export   ?folder_id=  → a .zip of .md files that keeps the folder
-               structure (everything if no folder is given). Each file starts
-               with front matter so re-importing restores titles and tags.
+GET  /export   ?folder_id= or ?note_id=  → a .zip of .md files that keeps
+               the folder structure (everything if neither is given). Each
+               file starts with front matter so re-importing restores titles
+               and tags. Images go in an `_images/` folder (doodles also get a
+               `.doodle.json` with their strokes) and notes link to them by
+               relative path; the frontend's importer reverses this.
 """
 
 import io
@@ -25,11 +28,12 @@ from marshmallow import Schema, fields, validate
 from ...common.auth import current_user
 from ...common.request import load_body
 from ...extensions import db
-from ...models import Folder, Note
+from ...models import Attachment, Folder, Note
 from ...models.base import iso
 from ..folders.service import MAX_DEPTH, active_folders, ancestors, descendant_ids, folder_map, resolve_parent
 from ..notes.schemas import MAX_CONTENT_LENGTH
-from ..notes.service import active_notes, get_or_create_tags, refresh_links, top_position
+from ..attachments.service import EXTENSIONS, referenced_ids
+from ..notes.service import active_notes, get_or_create_tags, get_owned_note, refresh_links, top_position
 
 bp = Blueprint("transfer", __name__)
 
@@ -205,14 +209,31 @@ def safe_name(name: str, fallback: str = "Untitled") -> str:
     return (cleaned or fallback)[:100]
 
 
-def note_file(note: Note) -> str:
+IMAGES_DIR = "_images"
+
+
+def image_name(attachment: Attachment) -> str:
+    return f"{attachment.id}.{EXTENSIONS.get(attachment.mime_type, 'img')}"
+
+
+def note_file(note: Note, image_paths: dict[str, str] | None = None, depth: int = 0) -> str:
+    """The note as Markdown with front matter; attachment: links become relative paths."""
+    content = note.content
+    if image_paths:
+        prefix = "../" * depth
+
+        def relink(match):
+            name = image_paths.get(match.group(1))
+            return f"{prefix}{IMAGES_DIR}/{name}" if name else match.group(0)
+
+        content = re.sub(r"attachment:([0-9a-f-]{36})", relink, content)
     lines = ["---", f"title: {json.dumps(note.title, ensure_ascii=False)}"]
     if note.tags:
         lines.append("tags: [" + ", ".join(json.dumps(t.name, ensure_ascii=False) for t in note.tags) + "]")
     if note.is_pinned:
         lines.append("pinned: true")
     lines += [f"created: {iso(note.created_at)}", f"updated: {iso(note.updated_at)}", "---", ""]
-    return "\n".join(lines) + note.content
+    return "\n".join(lines) + content
 
 
 @bp.get("/export")
@@ -221,8 +242,13 @@ def export_zip():
     user = current_user()
     folders = folder_map(user.id)
     folder_id = request.args.get("folder_id") or None
+    note_id = request.args.get("note_id") or None
 
-    if folder_id:
+    if note_id:
+        note = get_owned_note(user.id, note_id)
+        included, notes, base_depth = set(), [note], 0
+        archive_name = f"{safe_name(note.title)}.zip"
+    elif folder_id:
         root = resolve_parent(user.id, folder_id, field="folder_id")
         included = {root.id} | descendant_ids(root.id, folders)
         notes = active_notes(user.id).filter(Note.folder_id.in_(included)).all()
@@ -240,17 +266,32 @@ def export_zip():
         chain = [*ancestors(folders[fid], folders), folders[fid]][base_depth:]
         return "/".join(safe_name(f.name, "Folder") for f in chain) + "/"
 
+    def folder_of(note: Note) -> str | None:
+        return None if note_id else note.folder_id
+
+    # Images used by the exported notes.
+    wanted = set().union(*(referenced_ids(n.content) for n in notes)) if notes else set()
+    images = (
+        Attachment.query.filter(Attachment.user_id == user.id, Attachment.id.in_(wanted)).all() if wanted else []
+    )
+    image_paths = {a.id: image_name(a) for a in images}
+
     buffer = io.BytesIO()
     used: set[str] = set()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         for fid in sorted(included, key=lambda i: dir_path(i)):
             archive.writestr(zipfile.ZipInfo(dir_path(fid)), "")  # keeps empty folders
-        for note in sorted(notes, key=lambda n: (dir_path(n.folder_id), n.title.lower())):
-            stem = dir_path(note.folder_id) + safe_name(note.title)
+        for note in sorted(notes, key=lambda n: (dir_path(folder_of(n)), n.title.lower())):
+            directory = dir_path(folder_of(note))
+            stem = directory + safe_name(note.title)
             path, n = f"{stem}.md", 2
             while path.lower() in used:
                 path, n = f"{stem} ({n}).md", n + 1
             used.add(path.lower())
-            archive.writestr(path, note_file(note))
+            archive.writestr(path, note_file(note, image_paths, depth=directory.count("/")))
+        for attachment in images:
+            archive.writestr(f"{IMAGES_DIR}/{image_paths[attachment.id]}", attachment.data)
+            if attachment.doodle:
+                archive.writestr(f"{IMAGES_DIR}/{attachment.id}.doodle.json", attachment.doodle)
     buffer.seek(0)
     return send_file(buffer, mimetype="application/zip", as_attachment=True, download_name=archive_name)

@@ -110,7 +110,9 @@ function buildUrl(path, query) {
 
 async function rawRequest(path, { method = "GET", body, query, token, signal, responseType = "json" } = {}) {
   const headers = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+  // FormData sets its own multipart Content-Type (with the boundary).
+  if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const timeout = new AbortController();
@@ -123,7 +125,7 @@ async function rawRequest(path, { method = "GET", body, query, token, signal, re
     response = await fetch(buildUrl(path, query), {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
       signal: combined,
     });
   } catch (err) {
@@ -144,6 +146,7 @@ async function rawRequest(path, { method = "GET", body, query, token, signal, re
 
   if (response.status === 204) return null;
   if (response.ok && responseType === "blob") return response.blob();
+  if (response.ok && responseType === "response") return response;
 
   let data = null;
   try {
@@ -200,7 +203,9 @@ const SESSION_EXPIRED = () =>
  * @param {string} path e.g. "/notes"
  * @param {{method?: string, body?: any, query?: object, signal?: AbortSignal, auth?: boolean, responseType?: "json"|"blob"}} options
  *   `auth: false` sends no token and skips session handling (login/register).
- *   `responseType: "blob"` returns the body as a Blob (file downloads).
+ *   `responseType: "blob"` returns the body as a Blob (file downloads);
+ *   "response" returns the raw Response (when headers matter too).
+ *   A FormData `body` is sent as multipart (file uploads).
  */
 export async function request(path, { auth = true, ...options } = {}) {
   if (!auth) return rawRequest(path, options);

@@ -1,5 +1,113 @@
 # Noteable
 
+> **✏️ Jerry — sections marked "To write" are for you.** The course requires the
+> README to be written in your own words, with any AI-generated documentation
+> kept at the bottom under a clearly labelled heading. Everything Claude wrote
+> is now in [AI-generated documentation](#ai-generated-documentation) below.
+> Each "To write" box lists what the course asks for and facts you can check
+> against. Delete each box (and this note) once you've written that section.
+
+**Live app:** <https://peng-jerry.github.io/projects/noteable/> ·
+**Write-up:** <https://peng-jerry.github.io/projects/project12/> ·
+**Prompt log:** [prompt_log.md](prompt_log.md)
+
+## What it does
+
+> **To write:** what Noteable is and who it's for, in a few sentences.
+> Facts: a Markdown note-taking web app with accounts, nested folders,
+> coloured tags, templates, `[[links]]` between notes, version history, a
+> 30-day trash, and import/export. React frontend on GitHub Pages, Flask API
+> on Render, PostgreSQL on Neon. It's built as the first part of a larger site.
+
+## How to use it
+
+> **To write:** a short walkthrough for someone opening it for the first time:
+> sign up, create a folder, write a note (Markdown, `[[` to link a note), tag
+> it, search with `tag:name`, start a note from a template (▾ next to New
+> note), drag notes onto folders, find things in Trash, and use the ⋯ menu
+> for version history and export. Newer toolbar items: table, doodle, take a
+> picture, indent/outdent, and ticking checklist boxes in the preview.
+> Mention the first visit can take up to a minute while the free Render
+> server wakes up.
+
+## Features I'm most proud of
+
+> **To write:** pick two to four and say *why*, in your own words.
+> Possible candidates: offline-safe autosave with draft recovery; `[[links]]`
+> that survive renames, plus backlinks; version history with a diff; trash that
+> restores whole folders; import/export that round-trips through a `.zip`; drag
+> & drop that also works with touch and the keyboard; the API designed to grow
+> into a larger site; editable doodles; the in-app camera; tables you Tab
+> through.
+
+## Running it locally
+
+> **To write:** the steps in your own words. Facts to check against:
+> - Backend (Python 3.12+): `cd backend`, `python3 -m venv .venv`,
+>   `source .venv/bin/activate`, `pip install -r requirements-dev.txt`,
+>   `cp .env.example .env`, `flask --app wsgi db upgrade`,
+>   `flask --app wsgi run --debug` → <http://127.0.0.1:5000>. Uses SQLite
+>   locally, so no database setup is needed.
+> - Frontend (Node 22.22+; on this machine `conda activate noteable`):
+>   `cd frontend`, `npm install`, `npm run dev` → <http://localhost:5173>.
+> - Tests: `pytest` in `backend/`, `npm test` in `frontend/`.
+
+## How secrets are handled
+
+> **To write:** facts to check against:
+> - The backend needs `SECRET_KEY`, `JWT_SECRET_KEY` and `DATABASE_URL`. Locally
+>   they go in `backend/.env`, which `.gitignore` excludes. `.env.example` is
+>   only a template with placeholder values.
+> - In production they're set in Render's dashboard: Render generated the two
+>   keys, and the Neon connection string was pasted in by hand. None are in
+>   git. The app refuses to start in production if any are missing, so it can
+>   never run with the development defaults.
+> - The frontend has no secrets. `VITE_API_URL` is a public address, which is
+>   why `frontend/.env.production` is committed.
+> - User passwords are stored only as scrypt hashes. Login tokens are JWTs kept
+>   in the browser's `localStorage`. Logging out or changing your password
+>   revokes them on the server.
+
+## How I used AI
+
+> **To write:** a brief summary of how you used AI and how you directed it.
+> For example: you set the requirements and made the design choices through
+> Claude's clarifying questions, it wrote the code and docs and tested them,
+> and you handled the accounts and deployment (GitHub, Render, Neon), debugged
+> the Render deploy error, and reviewed the results. Point to
+> [prompt_log.md](prompt_log.md) for the full record.
+
+### Citations
+
+> **To check / edit:** a draft list of sources. Keep what applies.
+
+- **Claude Code** (Anthropic), model **Claude Opus 5.5**, used in VS Code.
+  It generated essentially all of the code, tests and the AI-generated
+  documentation below, over 4–7 October 2026.
+- **Backend libraries:** Flask, Flask-SQLAlchemy, Flask-Migrate (Alembic),
+  Flask-JWT-Extended, Flask-Limiter, Flask-Cors, marshmallow, psycopg,
+  gunicorn.
+- **Frontend libraries:** React, React Router, Vite, react-markdown,
+  remark-gfm, rehype-slug, @dnd-kit (drag & drop), fflate (zip), diff
+  (version comparison).
+- **Testing:** pytest, Vitest, Testing Library. Playwright was used to drive a
+  real browser during development (not part of the repo).
+- **Visual design:** reuses my portfolio's design. Its colour palette was
+  adapted from [Linbo Gao's portfolio](https://linbo271828-cell.github.io/github.io/),
+  and the typeface is IBM Plex Sans / Mono by IBM (SIL Open Font License).
+  The icon shapes follow the style of [Lucide](https://lucide.dev) (ISC
+  licence).
+- **Textarea caret positioning** for `[[` autocomplete uses the common
+  "mirror div" technique (as in the `textarea-caret-position` library).
+
+---
+
+## AI-generated documentation
+
+*Everything below this line was written by Claude (Anthropic) via Claude Code,
+as technical reference for the project. It is not part of my own write-up
+above.*
+
 A note-taking web app built for CMU 15-113 and hosted as part of my portfolio
 ([peng-jerry.github.io](https://peng-jerry.github.io)). Users sign up, then
 create, edit and organise Markdown notes in nested folders. Everyone's notes are
@@ -19,7 +127,7 @@ as separate modules (see [Extending the backend](#extending-the-backend)).
 | Database | PostgreSQL | Neon (free tier) | ✅ Deployed |
 | [`frontend/`](frontend/) | React 19 + Vite SPA, Markdown editor | GitHub Pages (`/projects/noteable/`) | ✅ Built into the portfolio's `projects/noteable/` folder |
 
-## Features
+### Features
 
 | Feature | Backend | Frontend |
 |---|---|---|
@@ -41,12 +149,17 @@ as separate modules (see [Extending the backend](#extending-the-backend)).
 | Drag & drop: notes onto folders, folders into folders | ✅ | ✅ |
 | Duplicate notes; starred folders | ✅ | ✅ |
 | Outline, stats and backlinks panel | ✅ backlinks | ✅ |
+| Doodles: draw with pen/highlighter/eraser, editable later | ✅ stores image + strokes | ✅ |
+| Take a picture (in-app camera) or add an existing image | ✅ image storage | ✅ |
+| Tables: size picker, Tab between cells, auto-aligned columns | — | ✅ |
+| List buttons work on empty lines; Tab/Shift+Tab nest lists (• ◦ ▪ / 1. a. i.) | — | ✅ |
+| Tick checklist items in the preview (or `Ctrl/⌘+Enter`) | — | ✅ |
 | Resizable / collapsible panes (remembered per browser) | — | ✅ |
 | Responsive UI (desktop / tablet / phone) + light/dark theme | — | ✅ |
 
 ---
 
-## Project structure
+### Project structure
 
 ```
 Noteable/
@@ -96,7 +209,7 @@ Noteable/
         └── test/           ← Vitest + Testing Library tests
 ```
 
-## Running the backend locally
+### Running the backend locally
 
 Requires Python 3.12+.
 
@@ -116,7 +229,7 @@ Without a `DATABASE_URL`, the app uses a local SQLite file at
 `backend/instance/noteable-dev.db`. To develop against Postgres, set
 `DATABASE_URL` in `.env`.
 
-### Running tests
+#### Running tests
 
 ```bash
 cd backend
@@ -130,7 +243,7 @@ The suite covers auth flows, token revocation, validation, folder nesting
 rules, search and pagination, and checks that no user can read or change
 another user's data. It passes on both SQLite and PostgreSQL.
 
-### Environment variables
+#### Environment variables
 
 | Variable | Required in prod | Default | Purpose |
 |---|---|---|---|
@@ -150,7 +263,7 @@ another user's data. It passes on both SQLite and PostgreSQL.
 In production the app **refuses to start** if any required variable is
 missing, so it never runs with the development secrets.
 
-## Running the frontend locally
+### Running the frontend locally
 
 Requires Node.js 22.22+ (React Router 8's minimum). A conda environment with
 Node is already set up on this machine:
@@ -176,7 +289,7 @@ gives your service a different URL. To override either one locally, put the
 value in `frontend/.env.local`, which git ignores. `VITE_BASE` changes the
 `/projects/noteable/` path prefix if you host the app somewhere else.
 
-### How the frontend works
+#### How the frontend works
 
 - **Routing.** It uses hash URLs (`/projects/noteable/#/notes/<id>`). GitHub Pages only
   serves the portfolio's own `404.html`, so ordinary paths like
@@ -229,11 +342,48 @@ value in `frontend/.env.local`, which git ignores. `VITE_BASE` changes the
   `.zip` files are unpacked in the browser and sent in batches. Folder menu →
   Export as .zip; list menu → Export all notes. Exports include a small
   front-matter header (title, tags, pinned), so they re-import losslessly.
-- **Editor.** Markdown with a toolbar (bold, italic, heading, bulleted,
-  numbered and check lists, quote, code, link) and the shortcuts `Ctrl/⌘+B`,
-  `I`, `E` and `K`. Pressing Enter continues a list. The preview supports
-  GitHub-flavoured Markdown (tables, task lists). Raw HTML in a note is never
-  rendered, so a note can't inject scripts.
+- **Editor.** Markdown with a toolbar in four groups: text (bold, italic,
+  heading); lists (bulleted, numbered, checklist, quote, decrease/increase
+  indent); links (code, link, `[[note link]]`); and inserts (table, doodle,
+  picture). Shortcuts: `Ctrl/⌘+B`, `I`, `E`, `K`, `Ctrl/⌘+S` (save now) and
+  `Ctrl/⌘+Enter` (tick the checklist item on the cursor's line). The preview
+  supports GitHub-flavoured Markdown (tables, task lists). Raw HTML in a note
+  is never rendered, so a note can't inject scripts.
+- **Lists.** The list buttons work on an empty line: the marker appears and
+  the cursor goes after it. Numbered lists continue from the item above.
+  Enter continues a list and renumbers the items after it. Enter on an empty
+  nested item moves it out a level; on an empty top-level item it ends the
+  list and leaves a blank line, so the next paragraph isn't folded into it.
+  **Tab / Shift+Tab** (or the indent buttons, which also work on phones) nest
+  and un-nest items, at most one level below the item above (any deeper and
+  Markdown would turn it into a code block). Each level renumbers itself, and
+  the preview shows outline styles: • ◦ ▪ for bullets and 1. a. i. for
+  numbers. Outside lists and tables, Tab moves focus out of the editor as
+  usual, so keyboard users never get stuck.
+- **Checklists.** Click a box in the preview to tick or untick it; this edits
+  `[ ]` ↔ `[x]` in the note and autosaves. Ticked items are struck through.
+- **Tables.** The table button opens a size picker (hover, or use the arrow
+  keys, then Enter) for up to 8 × 8 cells plus a header row. Inside a table,
+  Tab / Shift+Tab move between cells, selecting each cell's text; Tab in the
+  last cell adds a row. Columns are re-aligned on each move so the Markdown
+  stays readable.
+- **Doodles.** A drawing pad with pen (pressure-sensitive with a stylus),
+  highlighter and eraser, 7 colours, 3 sizes, undo/redo and clear. It saves a
+  PNG on a white "paper" background (readable in dark mode too) plus the
+  strokes, so "Edit doodle" (hover a doodle in the preview) reopens it for
+  more drawing and updates it in place. Closing with unsaved strokes asks
+  first.
+- **Pictures.** "Take or add a picture" opens a live camera preview, using
+  the browser's camera permission, with shutter, retake and front/back
+  switching. It works on laptops with a webcam and on phones. "Choose image"
+  adds an existing PNG, JPEG, GIF or WebP instead. Big images are shrunk in
+  the browser (to at most 1600 px, JPEG) before upload. If the camera is
+  blocked or missing, the dialog says so and offers the image picker.
+- **How pictures are stored.** Each picture is an *attachment* in the
+  database, referenced in the note as `![Photo](attachment:<id>)`. The
+  preview fetches it with your login token and shows it from a `blob:` URL,
+  so nobody else can load it. Pictures are inserted with blank lines around
+  them, so they never merge into a table or list above.
 - **Layout.** Three panes at 1100 px and wider. Drag the dividers to resize
   the sidebar, the note list, and the editor/preview split; double-click a
   divider (or press Enter on it) to reset it. The header's panel button hides
@@ -248,7 +398,7 @@ value in `frontend/.env.local`, which git ignores. `VITE_BASE` changes the
   crash screen if a page throws. Friendly pages for a missing note, a missing
   folder, and 404s.
 
-### Deploying the frontend
+#### Deploying the frontend
 
 The live copy is in the portfolio repo's `projects/noteable/` folder. After changing the
 frontend, rebuild straight into that folder, then commit and push the portfolio:
@@ -270,7 +420,7 @@ old backend doesn't have yet.
 
 ---
 
-## API reference
+### API reference
 
 Base URL: `/api/v1`. Every request and response body is JSON.
 
@@ -281,7 +431,7 @@ API returns `401` with code `token_expired`. The client then calls `POST
 new access token, and retries the request. Any other `401` code means the user
 should log in again.
 
-### Auth: `/auth`
+#### Auth: `/auth`
 
 | Method | Path | Auth | Body | Returns |
 |---|---|---|---|---|
@@ -297,7 +447,7 @@ should log in again.
 Passwords must be 8–128 characters and include at least one letter and one
 number. Emails are case-insensitive.
 
-### Folders: `/folders` (all protected)
+#### Folders: `/folders` (all protected)
 
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
@@ -313,7 +463,7 @@ Every folder includes a `note_count`. Folder rules:
 - A folder can't be moved into itself or one of its subfolders → `422 invalid_parent`
 - Folders can nest at most 10 levels deep → `422 max_depth_exceeded`
 
-### Notes: `/notes` (all protected)
+#### Notes: `/notes` (all protected)
 
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
@@ -359,7 +509,7 @@ includes `search: {terms, tags}` for highlighting. On Postgres, `relevance`
 combines title/content matches with full-text ranking (`ts_rank_cd`), so
 stemmed forms like "running" and "run" count too.
 
-### Tags: `/tags` (all protected)
+#### Tags: `/tags` (all protected)
 
 | Method | Path | Body | Returns |
 |---|---|---|---|
@@ -372,7 +522,7 @@ Tag names are 1–40 characters, without commas, unique per user ignoring case,
 with at most 20 per note. Colours are names (`sky`, `indigo`, `violet`, `rose`,
 `orange`, `amber`, `emerald`, `teal`, `slate`) that the frontend maps to theme-safe shades.
 
-### Templates: `/templates` (all protected)
+#### Templates: `/templates` (all protected)
 
 | Method | Path | Body | Returns |
 |---|---|---|---|
@@ -381,7 +531,7 @@ with at most 20 per note. Colours are names (`sky`, `indigo`, `violet`, `rose`,
 | PATCH | `/templates/:id` | any of the above | `{template}` (`403` for built-ins) |
 | DELETE | `/templates/:id` | — | `204` |
 
-### Trash: `/trash` (all protected)
+#### Trash: `/trash` (all protected)
 
 | Method | Path | Returns |
 |---|---|---|
@@ -397,12 +547,12 @@ Items are permanently deleted 30 days after being trashed. This happens the
 next time the trash is opened, on login, or via `flask --app wsgi purge-trash`
 (Render's free tier has no cron).
 
-### Import / export (protected)
+#### Import / export (protected)
 
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | POST | `/import` | `folder_id?`, `files: [{path, content}]` (≤ 100 per request) | `{created: {notes, folders}, notes, skipped}` |
-| GET | `/export` | `?folder_id=` (omit for everything) | A `.zip` of `.md` files that keeps the folder structure |
+| GET | `/export` | `?folder_id=` or `?note_id=` (omit both for everything) | A `.zip` of `.md` files that keeps the folder structure, plus an `_images/` folder |
 
 Import creates folders from paths (`School/15-113/week1.md`), reusing ones with
 the same name. Titles come from front matter `title:`, else the first
@@ -410,13 +560,41 @@ the same name. Titles come from front matter `title:`, else the first
 and the header is removed. Export writes that same header, so exports
 round-trip.
 
-### Other
+**Pictures in exports:** images go in `_images/<id>.<ext>` (doodles also get
+`<id>.doodle.json` with their strokes), and each note's
+`attachment:<id>` links become relative paths such as `../_images/<id>.png`.
+The browser-side importer reverses this. It finds images that notes link to
+by relative path (in a `.zip`, or picked alongside the notes), uploads them
+first (doodles stay editable), then rewrites the links before sending the
+notes.
+
+#### Attachments (images): `/attachments` (protected)
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| POST | `/attachments` | multipart: `file`, `kind` (`photo`\|`doodle`\|`image`), `width?`, `height?`, `note_id?`, `doodle?` (JSON strokes) | `201` `{attachment}` including its `markdown` |
+| GET | `/attachments/:id` | — | The image bytes, with `X-Attachment-Kind`. Revalidated with an ETag (`304` if unchanged) |
+| GET | `/attachments/:id/doodle` | — | `{doodle}`: the editable strokes (`404 not_a_doodle` otherwise) |
+| PUT | `/attachments/:id` | as POST | Replaces the image (and strokes) in place, so notes keep the same reference |
+| DELETE | `/attachments/:id` | — | `204` |
+
+- **Limits:** images up to 5 MB (this route alone allows bodies larger than
+  the API's normal 1 MB). The type is checked from the file's bytes, not its
+  name, and only PNG, JPEG, GIF and WebP are accepted. SVG is refused because
+  it can carry scripts (`415 unsupported_image`).
+- **Sharing:** attachments belong to the user, not one note, so duplicates,
+  version history and templates can share them.
+- **Cleanup:** an attachment older than a day that no note (including
+  trashed ones), version or template mentions is deleted, alongside the
+  30-day trash purge.
+
+#### Other
 
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/health` | `{status, database}`. Returns `503` if the database is unreachable (used by Render's health check) |
 
-### Errors
+#### Errors
 
 Every error has the same shape, whatever caused it:
 
@@ -444,7 +622,7 @@ Every error has the same shape, whatever caused it:
 
 ---
 
-## Database
+### Database
 
 ```
 users ─┬─< folders (parent_id → folders, nested; deleted_at/trashed_with = trash)
@@ -455,6 +633,7 @@ users ─┬─< folders (parent_id → folders, nested; deleted_at/trashed_with
        │      └─>< tags (via note_tags)
        ├─< tags
        ├─< templates
+       ├─< attachments (image bytes + doodle strokes; referenced as attachment:<id>)
        └─< token_blocklist (revoked JWTs)
 ```
 
@@ -469,7 +648,7 @@ users ─┬─< folders (parent_id → folders, nested; deleted_at/trashed_with
   and commit the new file in `migrations/versions/`. On Render, `db upgrade` runs automatically on every deploy.
 - Maintenance: `flask --app wsgi purge-tokens` deletes revoked-token records that have expired anyway.
 
-## Deployment (Render + Neon)
+### Deployment (Render + Neon)
 
 1. **Create the database.** Make a free project on [Neon](https://neon.tech)
    (or [Supabase](https://supabase.com)) and copy its Postgres connection
@@ -495,7 +674,7 @@ Then add the environment variables from the table above (`APP_ENV=production`,
 > Render's free web services go to sleep after ~15 minutes without traffic, so
 > the first request after that can take ~30–60 seconds while the service wakes up.
 
-## Extending the backend
+### Extending the backend
 
 The backend is laid out so that other sections of the wider site can be added
 without changing existing ones:
@@ -514,7 +693,7 @@ without changing existing ones:
 - **Versioned API.** Everything lives under `/api/v1`. A future breaking change
   goes in a new `v2` blueprint, so existing clients keep working.
 
-## Security notes
+### Security notes
 
 - Passwords are hashed with scrypt (Werkzeug) and never returned by the API.
 - A failed login gives the same response whether or not the email exists, and takes about the same time.
@@ -525,7 +704,7 @@ without changing existing ones:
 - CORS only allows the configured frontend origins.
 - Request bodies are size-limited, and unknown fields are rejected.
 
-## Known limitations
+### Known limitations
 
 - Rate-limit counters are kept in memory for each gunicorn worker, so the real
   limit is roughly ×2 and resets when the service restarts. For stricter limits,
@@ -538,6 +717,11 @@ without changing existing ones:
   frontend on github.io talking to an API on onrender.com (cookies would be
   third-party and get blocked). The main risk is script injection (XSS), which
   is limited by never rendering raw HTML from notes.
+- Pictures are stored in the Postgres database. Neon's free tier has 0.5 GB,
+  roughly 1,500 browser-shrunk photos. A busier site would move images to
+  object storage (S3, Cloudinary) and keep only the references.
+- Images inside table cells aren't supported. Pictures are always inserted
+  as their own paragraph.
 - Offline support covers saving edits to notes that are already open. Notes
   can't be opened or created without a connection.
 - Editing the same note in two tabs at once is last-write-wins. Version

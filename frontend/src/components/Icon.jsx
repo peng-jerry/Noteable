@@ -166,6 +166,25 @@ const PATHS = {
   ),
   restore: <path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" />,
   link2: <path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8" />,
+  table: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 10h18M3 15h18M9 4v16M15 4v16" />
+    </>
+  ),
+  camera: (
+    <>
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </>
+  ),
+  doodle: <path d="M3 17c3-6 6-9 8-8s-1 6 1 7 5-5 7-7M18 3l3 3-9 9-4 1 1-4z" />,
+  highlighter: <path d="m9 11-6 6v3h9l3-3M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />,
+  eraser: <path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l6.6 6.6a1 1 0 0 1 0 1.4L13 21M22 21H7M5 11l9 9" />,
+  indent: <path d="M3 8l4 4-4 4M21 12H11M21 6H11M21 18H11" />,
+  outdent: <path d="M7 8l-4 4 4 4M21 12H11M21 6H11M21 18H11" />,
+  undo: <path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />,
+  redo: <path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />,
 };
 
 export default function Icon({ name, size, className = "", title }) {

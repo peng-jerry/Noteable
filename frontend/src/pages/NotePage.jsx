@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
-import { isAbortError, notesApi, templatesApi, trashApi } from "../api";
+import { isAbortError, notesApi, templatesApi, transferApi, trashApi } from "../api";
 import Dialog from "../components/Dialog";
 import Icon from "../components/Icon";
 import InfoPanel from "../components/InfoPanel";
@@ -171,7 +171,10 @@ function NoteEditor({ noteId }) {
     window.addEventListener("afterprint", done);
     const tryPrint = (attempt = 0) => {
       if (cancelled) return;
-      if (document.querySelector(".print-area .markdown-body, .print-area .preview-empty") || attempt > 40) {
+      const ready = document.querySelector(".print-area .markdown-body, .print-area .preview-empty");
+      const imagesLoading = document.querySelector(".print-area .attachment-placeholder:not(.error)");
+      const imagesDecoding = [...document.querySelectorAll(".print-area img")].some((img) => !img.complete);
+      if ((ready && !imagesLoading && !imagesDecoding) || attempt > 100) {
         window.print();
         setTimeout(done, 500);
       } else {
@@ -258,10 +261,21 @@ function NoteEditor({ noteId }) {
     }
   }
 
-  function exportAs(kind) {
+  async function exportAs(kind) {
     const name = safeFileName(title || "Untitled");
-    if (kind === "md") downloadFile(`${name}.md`, content, "text/markdown;charset=utf-8");
-    else downloadFile(`${name}.txt`, `${title || "Untitled"}\n\n${markdownToText(content)}`);
+    if (kind === "txt") {
+      downloadFile(`${name}.txt`, `${title || "Untitled"}\n\n${markdownToText(content)}`);
+    } else if (/attachment:[0-9a-f-]{36}/.test(content)) {
+      // Pictures can't live inside a .md file, so it becomes a .zip with them.
+      try {
+        await autosave.flush();
+        downloadFile(`${name}.zip`, await transferApi.exportZip(null, { noteId }));
+      } catch (err) {
+        toast.error(err);
+      }
+    } else {
+      downloadFile(`${name}.md`, content, "text/markdown;charset=utf-8");
+    }
   }
 
   /* ---- render ---- */
@@ -379,7 +393,11 @@ function NoteEditor({ noteId }) {
               { label: "Version history", icon: <Icon name="history" />, onSelect: () => setDialog("history") },
               { label: "Duplicate", icon: <Icon name="copy" />, onSelect: duplicate },
               { label: "Save as template", icon: <Icon name="template" />, onSelect: () => setDialog("template") },
-              { label: "Export as Markdown (.md)", icon: <Icon name="download" />, onSelect: () => exportAs("md") },
+              {
+                label: /attachment:[0-9a-f-]{36}/.test(content) ? "Export with pictures (.zip)" : "Export as Markdown (.md)",
+                icon: <Icon name="download" />,
+                onSelect: () => exportAs("md"),
+              },
               { label: "Export as text (.txt)", icon: <Icon name="download" />, onSelect: () => exportAs("txt") },
               { label: "Print or save as PDF", icon: <Icon name="printer" />, onSelect: () => setPrinting(true) },
               { label: "Move to trash", icon: <Icon name="trash" />, danger: true, onSelect: () => setDialog("delete") },
@@ -462,6 +480,7 @@ function NoteEditor({ noteId }) {
           <MarkdownEditor
             ref={editorRef}
             textareaId="note-body"
+            noteId={noteId}
             value={content}
             view={effectiveView}
             titles={linkTitles}

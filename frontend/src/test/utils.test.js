@@ -74,7 +74,7 @@ describe("markdown edits", () => {
     expect(apply("- milk", continueList("- milk", 6, 6))).toBe("- milk\n- ");
     expect(apply("3. c", continueList("3. c", 4, 4))).toBe("3. c\n4. ");
     expect(apply("- [x] done", continueList("- [x] done", 10, 10))).toBe("- [x] done\n- [ ] ");
-    expect(apply("- a\n- ", continueList("- a\n- ", 6, 6))).toBe("- a\n");
+    expect(apply("- a\n- ", continueList("- a\n- ", 6, 6))).toBe("- a\n\n"); // ends with a blank line
     expect(continueList("plain", 5, 5)).toBeNull();
   });
 });

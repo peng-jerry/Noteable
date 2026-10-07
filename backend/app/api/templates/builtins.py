@@ -52,6 +52,20 @@ BUILTIN_TEMPLATES = [
             "|---|---|---|\n|  |  |  |\n\n## Tasks\n- [ ] \n\n## Risks & open questions\n- \n"
         ),
     },
+    {
+        "id": "builtin-jerry",
+        "name": "Jerry's Template",
+        "description": "Template Created by Jerry in codebase to show engagement with the code",
+        "title": "A Day In The Life Of Jerry",
+        "content": (
+            "# {{title}}\n\n"
+            "## Morning\n- Ate a donut\n- Coded for 15-113 Project 2\n\n"
+            "## Afternoon\n- Went to class\n- Debugged some Code\n"
+            "- Stole Haribos Gummy Bears from the Robomechanics Lab\n\n"
+            "## Night\n- Ate dinner\n- Worked on Noteable\n- Hung out with friends\n- Went to sleep\n"
+        ),
+    },
+
 ]
 
 BUILTIN_IDS = {t["id"] for t in BUILTIN_TEMPLATES}

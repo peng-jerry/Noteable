@@ -35,6 +35,7 @@ def create_app(config_name: str | None = None) -> Flask:
         app,
         resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}},
         allow_headers=["Content-Type", "Authorization"],
+        expose_headers=["X-Attachment-Kind"],
         methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
         max_age=600,
     )
